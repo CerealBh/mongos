@@ -1,106 +1,87 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Binder</title>
-  <link rel="stylesheet" href="style.css">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Binder</title>
+	<link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div class="app">
-	<div id="trashZone" class="trash-zone">
-  🗑️ Soltar aqui para excluir
+	<div class="app">
+		<div id="trashZone" class="trash-zone">
+			🗑️ Soltar aqui para excluir
+		</div>
+
+		<div id="create-binder-screen" class="create-screen">
+			<div class="gallery-section">
+				<h2>Meus Binders</h2>
+				<div id="binder-gallery" class="binder-gallery">
+					<!-- Binder preview cards will be injected here -->
+				</div>
+			</div>
+
+			<div class="create-box">
+				<h3 style="font-size:16px; margin-bottom: 10px;">Criar novo Binder</h3>
+
+				<label>Nome:
+					<input type="text" id="binder-name-input" placeholder="Ex: Binder Base Set">
+				</label>
+
+				<label>Linhas:
+					<input type="number" id="rows-input" min="1" max="10" value="3">
+				</label>
+
+				<label>Colunas:
+					<input type="number" id="columns-input" min="1" max="10" value="3">
+				</label>
+
+				<label>Páginas:
+					<input type="number" id="pages-input" min="1" max="50" value="3">
+				</label>
+
+				<!-- Modo Exibição option has been moved to top toggle -->
+
+				<button id="create-binder-btn">Criar Binder</button>
+			</div>
+		</div>
+
+		<div class="binder-container">
+
+			<!-- Busca (fora dos botões) -->
+			<div class="search-panel">
+				<input id="searchInput" type="text" placeholder="Buscar carta (ex: Gengar, Pikachu)..."
+					autocomplete="off">
+				<div id="searchResults" class="search-results"></div>
+			</div>
+
+			<!-- Controles de página (só botões + texto) -->
+			<div class="page-controls">
+				<button id="manageBinders">📚</button>
+				<button id="prevPage">◀</button>
+				<span id="pageIndicator">Página 1</span>
+				<button id="nextPage">▶</button>
+				<button id="addPage" title="Adicionar Página">➕</button>
+				<button id="toggleDisplayMode" title="Alternar Modo Livro">📖</button>
+				<button id="deleteBinder">🗑</button>
+			</div>
+
+			<div class="binder-page"></div>
+		</div>
+
+		<div class="hand-container">
+			<div class="hand-viewport">
+				<div class="hand" id="hand"></div>
+			</div>
+		</div>
+
 	</div>
 
-  <div id="create-binder-screen" class="create-screen">
-	
-	<div class="create-box">
-  <h2>Binder</h2>
+	<div id="handDropZone" aria-hidden="true"></div>
 
-  <label>Escolher existente:
-    <select id="binder-select">
-      <option value="">(Criar novo)</option>
-    </select>
-  </label>
-
-  <div style="display:flex; gap:10px;">
-    <button id="open-binder-btn" type="button">Abrir</button>
-    <button id="delete-binder-btn" type="button">Excluir</button>
-  </div>
-
-  <hr style="opacity:.2">
-
-  <h3 style="font-size:14px; opacity:.9;">Criar novo</h3>
-
-  <label>Nome:
-    <input type="text" id="binder-name-input" placeholder="Ex: Binder Base Set">
-  </label>
-
-  <!-- seus inputs rows/columns/pages/mode continuam aqui -->
-  ...
-  <button id="create-binder-btn">Criar Binder</button>
-</div>
-    <div class="create-box">
-      <h2>Criar Novo Binder</h2>
-
-      <label>Linhas:
-        <input type="number" id="rows-input" min="1" max="10" value="3">
-      </label>
-
-      <label>Colunas:
-        <input type="number" id="columns-input" min="1" max="10" value="3">
-      </label>
-
-      <label>Páginas:
-        <input type="number" id="pages-input" min="1" max="50" value="3">
-      </label>
-
-      <label>Modo de Exibição:
-        <select id="display-mode-input">
-          <option value="buttons">Botões</option>
-          <option value="book">Livro</option>
-          <option value="scroll">Scroll</option>
-          <option value="infinite">Infinito</option>
-        </select>
-      </label>
-
-      <button id="create-binder-btn">Criar Binder</button>
-    </div>
-  </div>
-
-	<div class="binder-container">
-
-		<!-- Busca (fora dos botões) -->
-		<div class="search-panel">
-			<input id="searchInput" type="text"
-				placeholder="Buscar carta (ex: Gengar, Pikachu)..."
-				autocomplete="off">
-		<div id="searchResults" class="search-results"></div>
-	</div>
-
-	<!-- Controles de página (só botões + texto) -->
-	<div class="page-controls">
-		<button id="manageBinders">📚</button>
-		<button id="prevPage">◀</button>
-		<span id="pageIndicator">Página 1</span>
-		<button id="nextPage">▶</button>
-		<button id="deleteBinder">🗑</button>
-	</div>
-
-  <div class="binder-page"></div>
-</div>
-
-  <div class="hand-container">
-    <div class="hand-viewport">
-      <div class="hand" id="hand"></div>
-    </div>
-  </div>
-
-</div>
-
-<div id="handDropZone" aria-hidden="true"></div>
-
-<script src="script.js" defer></script>
+	<script src="script.js" defer></script>
 </body>
+
 </html>

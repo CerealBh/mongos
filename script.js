@@ -47,7 +47,7 @@ const BinderStore = {
   },
 
   createBinderEntry({ name, config }) {
-    const id = `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
+    const id = `b_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
     const now = Date.now();
 
     const entry = {
@@ -98,18 +98,6 @@ const BinderStore = {
 
 const DRAG_ARM_MS = 5;     // delay pra “armar” drag na mão (ajuste aqui)
 const MOVE_TOLERANCE = 10;    // se mexer antes, cancela armar drag
-
-const PAN_THRESHOLD = 12;
-const PAN_ANGLE_BIAS = 1.2;
-
-let handTranslateX = 0;
-
-let panPointerId = null;
-let isHandPanning = false;
-let panStartX = 0;
-let panStartY = 0;
-let panStartTranslate = 0;
-let pendingPanCard = null;
 
 /* =========================
    INDEX LOCAL
@@ -193,22 +181,8 @@ function updateHandFan() {
   });
 }
 
-function getPanLimits() {
-  const vw = handViewport.clientWidth;
-  const hw = hand.scrollWidth;
-  if (hw <= vw) return { min: 0, max: 0 };
-  return { min: vw - hw, max: 0 };
-}
-
-function applyHandTranslate(x) {
-  const { min, max } = getPanLimits();
-  handTranslateX = clamp(x, min, max);
-  hand.style.transform = `translateX(${handTranslateX}px)`;
-}
-
 function refreshHandLayout() {
   updateHandFan();
-  applyHandTranslate(handTranslateX);
 }
 
 /* =========================
@@ -217,55 +191,10 @@ function refreshHandLayout() {
 
 function makeBinderCard(cardEl) {
   cardEl.dataset.zone = "binder";
-  cardEl.draggable = true;
 }
 
 function makeHandCard(cardEl) {
   cardEl.dataset.zone = "hand";
-  cardEl.draggable = false;
-
-  // garante que não duplica listeners
-  if (cardEl.dataset.handInit === "1") return;
-  cardEl.dataset.handInit = "1";
-
-  let armTimer = null;
-  let downX = 0;
-  let downY = 0;
-
-  const disarm = () => {
-    if (armTimer) clearTimeout(armTimer);
-    armTimer = null;
-    cardEl.draggable = false;
-  };
-
-  cardEl._handDisarm = disarm;
-
-  cardEl.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
-
-    downX = e.clientX;
-    downY = e.clientY;
-
-    if (isHandPanning) return;
-
-    armTimer = setTimeout(() => {
-      cardEl.draggable = true;
-    }, DRAG_ARM_MS);
-  });
-
-  cardEl.addEventListener("pointermove", (e) => {
-    if (!armTimer) return;
-    const dx = Math.abs(e.clientX - downX);
-    const dy = Math.abs(e.clientY - downY);
-    if (dx > MOVE_TOLERANCE || dy > MOVE_TOLERANCE) {
-      clearTimeout(armTimer);
-      armTimer = null;
-    }
-  });
-
-  cardEl.addEventListener("pointerup", disarm);
-  cardEl.addEventListener("pointercancel", disarm);
-  cardEl.addEventListener("dragend", disarm);
 }
 
 function buildCardElement(cardId) {
@@ -288,40 +217,6 @@ function buildCardElement(cardId) {
   if (meta?.img) img.src = meta.img;
 
   el.appendChild(img);
-
-  // dragstart: ghost reto + 10% maior
-  el.addEventListener("dragstart", (e) => {
-    if (isHandPanning) {
-      e.preventDefault();
-      return;
-    }
-
-    draggedCard = el;
-
-    const rect = el.getBoundingClientRect();
-    const ghost = el.cloneNode(true);
-
-    ghost.style.position = "fixed";
-    ghost.style.left = "-9999px";
-    ghost.style.top = "-9999px";
-    ghost.style.transform = "none";
-    ghost.style.setProperty("--fan-rotate", "0deg");
-    ghost.style.setProperty("--fan-lift", "0px");
-
-    ghost.style.width = `${rect.width * 1.1}px`;
-    ghost.style.height = `${rect.height * 1.1}px`;
-
-    document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, (rect.width * 1.1) / 2, (rect.height * 1.1) / 2);
-    setTimeout(() => ghost.remove(), 0);
-
-    setTimeout(() => (el.style.opacity = "0.4"), 0);
-  });
-
-  el.addEventListener("dragend", () => {
-    el.style.opacity = "1";
-    draggedCard = null;
-  });
 
   return el;
 }
@@ -346,9 +241,13 @@ function updatePageIndicator() {
     return;
   }
 
-  const left = currentPage + 1;
-  const right = Math.min(currentPage + 2, binder.config.totalPages);
-  indicator.textContent = `Páginas ${left}–${right} / ${binder.config.totalPages}`;
+  if (currentPage === 0) {
+    indicator.textContent = `Capa / ${binder.config.totalPages}`;
+  } else {
+    const left = currentPage + 1;
+    const right = Math.min(currentPage + 2, binder.config.totalPages);
+    indicator.textContent = `Páginas ${left}–${right} / ${binder.config.totalPages}`;
+  }
 }
 
 /**
@@ -362,16 +261,24 @@ function renderPages(visibleCount) {
   binderPage.classList.toggle("is-book", isBook);
 
   // cria 1 ou 2 folhas
-  const pageIndexes = [currentPage];
-  if (isBook) pageIndexes.push(currentPage + 1);
+  const pageIndexes = [];
+  if (isBook) {
+    if (currentPage === 0) {
+      pageIndexes.push(-1, 0); // -1 represents the empty left side cover block
+    } else {
+      pageIndexes.push(currentPage, currentPage + 1);
+    }
+  } else {
+    pageIndexes.push(currentPage);
+  }
 
   pageIndexes.forEach((pageIndex) => {
     const sheet = document.createElement("div");
     sheet.className = "binder-sheet";
     sheet.dataset.pageIndex = String(pageIndex);
 
-    // se passou do total (última “página par”), cria folha vazia
-    if (pageIndex >= binder.config.totalPages) {
+    // se passou do total (última “página par”) ou é fantasma contracapa (-1), cria folha vazia
+    if (pageIndex < 0 || pageIndex >= binder.config.totalPages) {
       sheet.classList.add("is-empty");
       binderPage.appendChild(sheet);
       return;
@@ -379,7 +286,17 @@ function renderPages(visibleCount) {
 
     // grid da folha
     sheet.style.gridTemplateColumns = `repeat(${binder.config.columns}, 1fr)`;
-    sheet.style.gridTemplateRows = `repeat(${binder.config.rows}, 1fr)`;
+    sheet.style.gridTemplateRows = `repeat(${binder.config.rows}, max-content)`;
+
+    // Injetando variavéis de controle pré-computadas para não quebrar a spec do CSS de divisão por variáveis.
+    const aspectW = binder.config.columns * 5;
+    const aspectH = binder.config.rows * 7;
+    sheet.style.setProperty("--auto-max-w", `calc(55vh * ${aspectW} / ${aspectH})`);
+    // calculando o slotW da folha dinamicamente de acordo com qtd de colunas
+    // (Pega width base de css diminuindo os gapings: padding 16*2 e gap 4px)
+    const cw = isBook ? 420 : 500;
+    const computedSlot = Math.floor((cw - (16 * 2) - ((binder.config.columns - 1) * 4)) / binder.config.columns);
+    sheet.style.setProperty("--slotW", `${Math.max(45, computedSlot)}px`);
 
     const pageData = binder.pages[pageIndex];
 
@@ -387,29 +304,7 @@ function renderPages(visibleCount) {
       const slot = document.createElement("div");
       slot.classList.add("slot");
       slot.dataset.slotIndex = String(slotIndex);
-	  slot.dataset.pageIndex = String(pageIndex);
-
-      slot.addEventListener("dragover", (e) => e.preventDefault());
-
-      slot.addEventListener("drop", () => {
-        if (!draggedCard) return;
-
-        const origin = draggedCard.parentElement;
-        const existing = slot.querySelector(".card");
-
-        // swap
-        if (existing) {
-          origin.appendChild(existing);
-          if (origin === hand) makeHandCard(existing);
-          else makeBinderCard(existing);
-        }
-
-        slot.appendChild(draggedCard);
-        makeBinderCard(draggedCard);
-
-        saveAll();
-        refreshHandLayout();
-      });
+      slot.dataset.pageIndex = String(pageIndex);
 
       if (cardId) {
         const card = buildCardElement(cardId);
@@ -442,7 +337,7 @@ function serializePageToModel() {
     const pageIndex = parseInt(slot.dataset.pageIndex, 10);
     const slotIndex = parseInt(slot.dataset.slotIndex, 10);
 
-    if (Number.isNaN(pageIndex) || Number.isNaN(slotIndex)) return;
+    if (Number.isNaN(pageIndex) || pageIndex < 0 || Number.isNaN(slotIndex)) return;
 
     const card = slot.querySelector(".card");
     binder.pages[pageIndex][slotIndex] = card ? card.dataset.cardId : null;
@@ -481,9 +376,13 @@ document.getElementById("prevPage")?.addEventListener("click", () => {
   saveAll();
 
   const isBook = binder.config.displayMode === "book";
-  const step = isBook ? 2 : 1;
+  if (isBook) {
+    const step = currentPage === 1 ? 1 : 2;
+    currentPage = Math.max(0, currentPage - step);
+  } else {
+    currentPage = Math.max(0, currentPage - 1);
+  }
 
-  currentPage = Math.max(0, currentPage - step);
   renderBinder();
 });
 
@@ -493,138 +392,195 @@ document.getElementById("nextPage")?.addEventListener("click", () => {
   saveAll();
 
   const isBook = binder.config.displayMode === "book";
-  const step = isBook ? 2 : 1;
+  if (isBook) {
+    const step = currentPage === 0 ? 1 : 2;
+    if (currentPage + step < binder.config.totalPages) {
+      currentPage += step;
+    }
+  } else {
+    if (currentPage + 1 < binder.config.totalPages) {
+      currentPage += 1;
+    }
+  }
 
-  const maxStart = isBook
-    ? Math.max(0, binder.config.totalPages - 2)
-    : Math.max(0, binder.config.totalPages - 1);
+  renderBinder();
+});
 
-  currentPage = Math.min(maxStart, currentPage + step);
+document.getElementById("addPage")?.addEventListener("click", () => {
+  if (!binder) return;
+  saveAll();
+
+  // Aumenta o número total de páginas na configuração
+  binder.config.totalPages += 1;
+  // Adiciona um novo array (nova página) cheio de null preenchendo todos os slots (rows * columns)
+  const totalSlots = binder.config.rows * binder.config.columns;
+  binder.pages.push(Array(totalSlots).fill(null));
+
+  saveAll();
+  renderBinder();
+});
+
+document.getElementById("toggleDisplayMode")?.addEventListener("click", () => {
+  if (!binder) return;
+
+  const currentMode = binder.config.displayMode;
+  const isNowBook = currentMode !== "book";
+  binder.config.displayMode = isNowBook ? "book" : "buttons";
+
+  saveAll();
+
+  // Smart Page Retention Logic (Math fixes for spread mapping)
+  if (isNowBook) {
+    // Normal to Book (Spread indices map to 2-page pairs, 0->0, 1->1, 2->1, 3->2)
+    currentPage = Math.floor((currentPage + 1) / 2);
+  } else {
+    // Book to Normal (Expands spread index back to left page of that pair, e.g 1->1 (Page 2), 2->3 (Page 4))
+    currentPage = currentPage > 0 ? (currentPage * 2) - 1 : 0;
+  }
+
   renderBinder();
 });
 
 /* =========================
-   DROP NA MÃO
+   CUSTOM POINTER DRAG & DROP
 ========================= */
 
-hand.addEventListener("dragover", e => e.preventDefault());
+let isDragging = false;
+let pointerGhost = null;
+let sourceCard = null;
+let startX = 0;
+let startY = 0;
 
-hand.addEventListener("drop", () => {
-  if (!draggedCard) return;
+document.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return; // Apenas clique esquerdo
 
-  const draggedId = draggedCard.dataset.cardId;
+  // Se clicamos em uma carta
+  const card = e.target.closest(".card");
+  if (!card || !card.dataset.cardId) return;
 
-  // se veio do binder, limpar origem no MODEL
-  const originSlot = draggedCard.closest(".slot");
-  const originSheet = originSlot?.closest(".binder-sheet");
-  const originPage = originSheet ? parseInt(originSheet.dataset.pageIndex, 10) : null;
-  const originSlotIndex = originSlot ? parseInt(originSlot.dataset.slotIndex, 10) : null;
-
-  if (originSlot && originSheet && Number.isFinite(originPage) && Number.isFinite(originSlotIndex)) {
-    binder.pages[originPage][originSlotIndex] = null;
-  }
-
-  hand.appendChild(draggedCard);
-  makeHandCard(draggedCard);
-
-  saveAll();
-  refreshHandLayout();
+  sourceCard = card;
+  startX = e.clientX;
+  startY = e.clientY;
 });
 
-/* =========================
-   TRASH ZONE
-========================= */
+document.addEventListener("pointermove", (e) => {
+  if (!sourceCard) return;
 
-const trashZone = document.getElementById("trashZone");
+  if (!isDragging) {
+    // Detecta intenção de arrastar com uma janela de tolerância pequena
+    const dx = Math.abs(e.clientX - startX);
+    const dy = Math.abs(e.clientY - startY);
+    if (dx > 4 || dy > 4) {
+      isDragging = true;
+      document.body.classList.add("is-dragging");
+      sourceCard.classList.add("is-dragging-source");
 
-trashZone.addEventListener("dragover", e => {
-  e.preventDefault();
-  trashZone.classList.add("drag-hover");
-});
+      // Constroi o fantasma visual atrelado ao rato
+      pointerGhost = document.createElement("div");
+      pointerGhost.className = "drag-ghost";
+      const imgClone = sourceCard.querySelector("img").cloneNode(true);
+      pointerGhost.appendChild(imgClone);
 
-trashZone.addEventListener("dragleave", () => {
-  trashZone.classList.remove("drag-hover");
-});
-
-trashZone.addEventListener("drop", () => {
-  trashZone.classList.remove("drag-hover");
-
-  if (!draggedCard) return;
-
-  const originSlot = draggedCard.closest(".slot");
-  const originSheet = originSlot?.closest(".binder-sheet");
-
-  if (originSlot && originSheet) {
-    const pageIndex = parseInt(originSheet.dataset.pageIndex, 10);
-    const slotIndex = parseInt(originSlot.dataset.slotIndex, 10);
-
-    if (!Number.isNaN(pageIndex) && !Number.isNaN(slotIndex)) {
-      binder.pages[pageIndex][slotIndex] = null;
+      pointerGhost.style.left = e.clientX + "px";
+      pointerGhost.style.top = e.clientY + "px";
+      document.body.appendChild(pointerGhost);
     }
   }
 
-  draggedCard.remove();
-
-  saveAll();
-  refreshHandLayout();
+  // Se já está arrastando, segue o mouse fluidamente
+  if (isDragging && pointerGhost) {
+    pointerGhost.style.left = e.clientX + "px";
+    pointerGhost.style.top = e.clientY + "px";
+  }
 });
 
-/* =========================
-   PAN DA MÃO
-========================= */
+document.addEventListener("pointerup", (e) => {
+  if (!sourceCard) return;
 
-handViewport.addEventListener("pointerdown", (e) => {
-  if (e.button !== 0) return;
+  if (isDragging) {
+    // Cleanup visual do Drag
+    if (pointerGhost) pointerGhost.remove();
+    pointerGhost = null;
+    document.body.classList.remove("is-dragging");
+    sourceCard.classList.remove("is-dragging-source");
 
-  panPointerId = e.pointerId;
-  pendingPanCard = e.target.closest(".card");
+    // Identificar o alvo físico exato ignorando a carta fantasma e origens bloqueadas por pointer-events
+    const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
 
-  panStartX = e.clientX;
-  panStartY = e.clientY;
-  panStartTranslate = handTranslateX;
+    if (dropTarget) {
+      const slot = dropTarget.closest(".slot");
+      const isTrash = dropTarget.closest("#trashZone");
+      const isHand = dropTarget.closest(".hand-viewport") || dropTarget.closest("#handDropZone") || dropTarget.closest(".hand-container");
 
-  isHandPanning = false;
+      const origin = sourceCard.parentElement;
+      const originSlot = sourceCard.closest(".slot");
+      const originSheet = originSlot?.closest(".binder-sheet");
 
-  handViewport.setPointerCapture(e.pointerId);
-});
+      // === LOGICA 1: LIXEIRA ===
+      if (isTrash) {
+        if (originSlot && originSheet) {
+          const pageIndex = parseInt(originSheet.dataset.pageIndex, 10);
+          const slotIndex = parseInt(originSlot.dataset.slotIndex, 10);
+          if (!Number.isNaN(pageIndex) && !Number.isNaN(slotIndex)) {
+            binder.pages[pageIndex][slotIndex] = null;
+          }
+        }
+        sourceCard.remove();
+      }
 
-handViewport.addEventListener("pointermove", (e) => {
-  if (panPointerId !== e.pointerId) return;
+      // === LOGICA 2: BINDER SLOT ===
+      else if (slot) {
+        const existingCard = slot.querySelector(".card");
 
-  const dx = e.clientX - panStartX;
-  const dy = e.clientY - panStartY;
+        // Swap visual se já existir carta
+        if (existingCard) {
+          origin.appendChild(existingCard);
+          if (origin === hand) makeHandCard(existingCard);
+          else makeBinderCard(existingCard);
+        }
 
-  const absX = Math.abs(dx);
-  const absY = Math.abs(dy);
+        // Limpa old binder model if moved entirely out of an old slot
+        if (originSlot && originSheet && (!existingCard || origin !== hand)) {
+          const op = parseInt(originSheet.dataset.pageIndex, 10);
+          const os = parseInt(originSlot.dataset.slotIndex, 10);
+          if (!Number.isNaN(op) && !Number.isNaN(os)) binder.pages[op][os] = null;
+        }
 
-  if (!isHandPanning) {
-    const horizontal = absX >= PAN_THRESHOLD && absX > absY * PAN_ANGLE_BIAS;
-    if (!horizontal) return;
+        slot.appendChild(sourceCard);
+        makeBinderCard(sourceCard);
+      }
 
-    isHandPanning = true;
+      // === LOGICA 3: MÃO ===
+      else if (isHand) {
+        // Limpa modelo de slot de onde estava vindo
+        if (originSlot && originSheet) {
+          const op = parseInt(originSheet.dataset.pageIndex, 10);
+          const os = parseInt(originSlot.dataset.slotIndex, 10);
+          if (!Number.isNaN(op) && !Number.isNaN(os)) binder.pages[op][os] = null;
+        }
+        hand.appendChild(sourceCard);
+        makeHandCard(sourceCard);
+      }
+    }
 
-    // se começou em carta, desarma o drag dela
-    if (pendingPanCard && pendingPanCard._handDisarm) pendingPanCard._handDisarm();
+    // Salvar e Renderizar de qualquer forma
+    saveAll();
+    refreshHandLayout();
   }
 
-  applyHandTranslate(panStartTranslate + dx);
+  // Reset variáveis
+  sourceCard = null;
+  isDragging = false;
 });
 
+const trashZone = document.getElementById("trashZone");
 
-
-
-function endPan() {
-  panPointerId = null;
-  isHandPanning = false;
-  pendingPanCard = null;
-}
-
-handViewport.addEventListener("pointerup", endPan);
-handViewport.addEventListener("pointercancel", endPan);
+/* =========================
+   PAN DA MÃO (REMOVIDO)
+========================= */
 
 /*====================================
-		Delete binder
-		
+    Delete binder (old nav button)
 ====================*/
 
 document.getElementById("deleteBinder")?.addEventListener("click", () => {
@@ -648,7 +604,7 @@ document.getElementById("deleteBinder")?.addEventListener("click", () => {
 function pickFirstIdByName(name) {
   const q = name.trim().toLowerCase();
   const found = cardsIndex.find(c => (c.name || "").toLowerCase() === q)
-            || cardsIndex.find(c => (c.name || "").toLowerCase().includes(q));
+    || cardsIndex.find(c => (c.name || "").toLowerCase().includes(q));
   return found?.id || null;
 }
 
@@ -673,22 +629,84 @@ async function seedHandIfEmpty() {
   loadHandFromIds(ids);
 }
 
-// atualizar seleção do binder
+// atualizar seleção do binder (AGORA em formato de galeria)
 
-function refreshBinderSelect() {
-  const sel = document.getElementById("binder-select");
-  if (!sel) return;
+function refreshBinderGallery() {
+  const gallery = document.getElementById("binder-gallery");
+  if (!gallery) return;
 
   const index = BinderStore.loadIndex();
-  const active = BinderStore.getActiveId();
 
-  sel.innerHTML = `<option value="">(Criar novo)</option>`;
+  gallery.innerHTML = "";
+
+  if (index.length === 0) {
+    gallery.innerHTML = `<p style="color:#94a3b8; font-size:14px;">Você ainda não tem nenhum binder.</p>`;
+    return;
+  }
+
   index.forEach(b => {
-    const opt = document.createElement("option");
-    opt.value = b.id;
-    opt.textContent = b.name;
-    if (b.id === active) opt.selected = true;
-    sel.appendChild(opt);
+    const card = document.createElement("div");
+    card.className = "binder-preview";
+
+    // Obter data de criação formatada se quiser
+    const d = new Date(b.createdAt);
+    const dateStr = d.toLocaleDateString();
+
+    // Pegar algumas cartas reais para fazer a capa-thumbnail do binder
+    const targetBinderObj = BinderStore.loadBinder(b.id);
+    let thumbnailsHTML = "";
+    if (targetBinderObj && targetBinderObj.pages && targetBinderObj.pages.length > 0) {
+      // Procura qual o ID da primeira carta preenchida no binder inteiro
+      const allStoredIds = targetBinderObj.pages.flat().filter(Boolean);
+      const coverId = allStoredIds.length > 0 ? allStoredIds[0] : null;
+
+      if (coverId) {
+        const meta = getCardMeta(coverId);
+        if (meta && meta.img) {
+          thumbnailsHTML = `<div class="binder-feature-cover"><img src="${meta.img}" alt="cover"></div>`;
+        } else {
+          thumbnailsHTML = `<div class="binder-feature-cover empty"></div>`;
+        }
+      } else {
+        thumbnailsHTML = `<div class="binder-feature-cover empty"></div>`;
+      }
+    }
+
+    card.innerHTML = `
+      ${thumbnailsHTML}
+      <h4>${b.name}</h4>
+      <p>${b.config?.totalPages || 0} páginas</p>
+      <p style="font-size:10px; opacity:0.6">${dateStr}</p>
+      <button class="delete-btn" title="Excluir este binder">🗑</button>
+    `;
+
+    // Clicar no cartão abre o binder
+    card.addEventListener("click", (e) => {
+      // Ignora se clicou no botão de apagar
+      if (e.target.closest(".delete-btn")) return;
+      openBinderById(b.id);
+    });
+
+    // Clicar no botão de lixeira apaga o binder (embutido na galeria)
+    const delBtn = card.querySelector(".delete-btn");
+    delBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // setTimeout to avoid blocking browser render loop overlapping with hovers
+      setTimeout(() => {
+        if (!window.confirm(`Apagar o binder "${b.name}" permanentemente?`)) return;
+        BinderStore.deleteBinder(b.id);
+        refreshBinderGallery();
+
+        // se excluiu o binder aberto
+        if (activeBinderId === b.id) {
+          binder = null;
+          activeBinderId = "";
+        }
+      }, 10);
+    });
+
+    gallery.appendChild(card);
   });
 }
 
@@ -696,6 +714,25 @@ function refreshBinderSelect() {
 /* =========================
    FORM / INIT BINDER
 ========================= */
+
+function setBinderUI(visible) {
+  const displayStyle = visible ? "flex" : "none";
+  // Hand UI
+  const hc = document.querySelector(".hand-container");
+  if (hc) hc.style.display = displayStyle;
+
+  // Search Panel
+  const sp = document.querySelector(".search-panel");
+  if (sp) sp.style.display = displayStyle;
+
+  // Trash Zone
+  const tz = document.getElementById("trashZone");
+  if (tz) tz.style.display = displayStyle;
+
+  // Page Controls (Header)
+  const pc = document.querySelector(".page-controls");
+  if (pc) pc.style.display = displayStyle;
+}
 
 function showBinderHome() {
   saveAll();
@@ -705,10 +742,14 @@ function showBinderHome() {
   activeBinderId = "";
 
   document.getElementById("create-binder-screen").style.display = "flex";
+
+  // Hide binder UI elements
+  setBinderUI(false);
+
   binderPage.innerHTML = "";
   hand.innerHTML = "";
 
-  refreshBinderSelect();
+  refreshBinderGallery();
 }
 
 function openBinderById(id) {
@@ -722,6 +763,9 @@ function openBinderById(id) {
   currentPage = 0;
 
   document.getElementById("create-binder-screen").style.display = "none";
+  // Show binder UI elements
+  setBinderUI(true);
+
   renderBinder();
 
   loadHandFromIds(BinderStore.loadHand(id));
@@ -733,35 +777,38 @@ function openBinderById(id) {
 function initBinder() {
   const createScreen = document.getElementById("create-binder-screen");
   const createBtn = document.getElementById("create-binder-btn");
-  const sel = document.getElementById("binder-select"); // seu select
 
-  refreshBinderSelect();
+  refreshBinderGallery();
 
-  // tenta abrir o último ativo
-  const last = BinderStore.getActiveId();
-  if (last && openBinderById(last)) {
-    createScreen.style.display = "none";
-  } else {
-    createScreen.style.display = "flex";
+  // Força abrir na tela inicial de escolha/criação
+  createScreen.style.display = "flex";
+  setBinderUI(false);
+
+  // Bind the internal 'Delete Binder' button to destroy the current binder specifically
+  const innerDeleteBtn = document.getElementById("deleteBinder");
+  if (innerDeleteBtn) {
+    // Remove listeners preventing duplicate binds if initBinder runs again
+    const newInnerDeleteBtn = innerDeleteBtn.cloneNode(true);
+    innerDeleteBtn.parentNode.replaceChild(newInnerDeleteBtn, innerDeleteBtn);
+
+    newInnerDeleteBtn.addEventListener("click", () => {
+      if (!activeBinderId) return;
+      if (window.confirm(`Tem certeza que deseja excluir o Fichário ativo atual ("${binder?.name || 'Vazio'}") do sistema?`)) {
+        BinderStore.deleteBinder(activeBinderId);
+        showBinderHome();
+      }
+    });
   }
-
-  // trocar binder no select
-  sel?.addEventListener("change", () => {
-    const id = sel.value;
-    if (!id) return; // (Criar novo) deixa na tela
-    openBinderById(id);
-  });
 
   // criar binder novo
   createBtn?.addEventListener("click", () => {
     const rows = parseInt(document.getElementById("rows-input").value, 10);
     const columns = parseInt(document.getElementById("columns-input").value, 10);
     const totalPages = parseInt(document.getElementById("pages-input").value, 10);
-    const displayMode = document.getElementById("display-mode-input").value;
 
-    const name = document.getElementById("binder-name")?.value || "Binder";
+    const name = document.getElementById("binder-name-input")?.value || "Binder";
 
-    const config = { rows, columns, totalPages, displayMode };
+    const config = { rows, columns, totalPages, displayMode: "buttons" }; // Default base mode
 
     const { id, binderObj } = BinderStore.createBinderEntry({ name, config });
 
@@ -769,9 +816,10 @@ function initBinder() {
     binder = binderObj;
     currentPage = 0;
 
-    refreshBinderSelect();
+    refreshBinderGallery();
 
     createScreen.style.display = "none";
+    setBinderUI(true); // Ensures Hand/Search/Navigation turns ON initially
     renderBinder();
 
     // seed desse binder
@@ -791,7 +839,7 @@ function renderResults(list) {
 
   box.innerHTML = "";
 
-  list.slice(0, 24).forEach(card => {
+  list.slice(0, 100).forEach(card => {
     const div = document.createElement("div");
     div.className = "result-card";
 
@@ -846,7 +894,12 @@ window.addEventListener("load", async () => {
   await loadCardsIndex();
   initBinder();
 
-  // se abriu um binder, seed por binder
+  // botão "Voltar" / Home de Binders
+  document.getElementById("manageBinders")?.addEventListener("click", () => {
+    showBinderHome();
+  });
+
+  // se NÃO estivémos na tela inicial e abrimos um binder (desativado mas seguro)
   if (activeBinderId) {
     await seedHandIfEmpty();
     refreshHandLayout();

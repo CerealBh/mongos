@@ -454,8 +454,8 @@ let startY = 0;
 document.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return; // Apenas clique esquerdo
 
-  // Se clicamos em uma carta
-  const card = e.target.closest(".card");
+  // Se clicamos em uma carta ou num resultado de busca
+  const card = e.target.closest(".card") || e.target.closest(".result-card");
   if (!card || !card.dataset.cardId) return;
 
   sourceCard = card;
@@ -512,6 +512,15 @@ document.addEventListener("pointerup", (e) => {
       const isTrash = dropTarget.closest("#trashZone");
       const isHand = dropTarget.closest(".hand-viewport") || dropTarget.closest("#handDropZone") || dropTarget.closest(".hand-container");
 
+      const isFromSearch = sourceCard.classList.contains("result-card");
+      let cardToMove = sourceCard;
+
+      if (isFromSearch && (slot || isHand)) {
+        cardToMove = buildCardElement(sourceCard.dataset.cardId);
+        window._justDragged = true;
+        setTimeout(() => { window._justDragged = false; }, 50);
+      }
+
       const origin = sourceCard.parentElement;
       const originSlot = sourceCard.closest(".slot");
       const originSheet = originSlot?.closest(".binder-sheet");
@@ -525,7 +534,7 @@ document.addEventListener("pointerup", (e) => {
             binder.pages[pageIndex][slotIndex] = null;
           }
         }
-        sourceCard.remove();
+        if (!isFromSearch) sourceCard.remove();
       }
 
       // === LOGICA 2: BINDER SLOT ===
@@ -534,32 +543,38 @@ document.addEventListener("pointerup", (e) => {
 
         // Swap visual se já existir carta
         if (existingCard) {
-          origin.appendChild(existingCard);
-          if (origin === hand) makeHandCard(existingCard);
-          else makeBinderCard(existingCard);
+          if (!isFromSearch) {
+            origin.appendChild(existingCard);
+            if (origin === hand) makeHandCard(existingCard);
+            else makeBinderCard(existingCard);
+          } else {
+            // Se veio da busca e já tem carta, o swap deleta a velha carta da busca?
+            // O mais seguro na busca é apenas substituir. O card existente vai para a lixeira se for drop de busca.
+            existingCard.remove();
+          }
         }
 
         // Limpa old binder model if moved entirely out of an old slot
-        if (originSlot && originSheet && (!existingCard || origin !== hand)) {
+        if (originSlot && originSheet && (!existingCard || origin !== hand) && !isFromSearch) {
           const op = parseInt(originSheet.dataset.pageIndex, 10);
           const os = parseInt(originSlot.dataset.slotIndex, 10);
           if (!Number.isNaN(op) && !Number.isNaN(os)) binder.pages[op][os] = null;
         }
 
-        slot.appendChild(sourceCard);
-        makeBinderCard(sourceCard);
+        slot.appendChild(cardToMove);
+        makeBinderCard(cardToMove);
       }
 
       // === LOGICA 3: MÃO ===
       else if (isHand) {
         // Limpa modelo de slot de onde estava vindo
-        if (originSlot && originSheet) {
+        if (originSlot && originSheet && !isFromSearch) {
           const op = parseInt(originSheet.dataset.pageIndex, 10);
           const os = parseInt(originSlot.dataset.slotIndex, 10);
           if (!Number.isNaN(op) && !Number.isNaN(os)) binder.pages[op][os] = null;
         }
-        hand.appendChild(sourceCard);
-        makeHandCard(sourceCard);
+        hand.appendChild(cardToMove);
+        makeHandCard(cardToMove);
       }
     }
 
@@ -576,8 +591,20 @@ document.addEventListener("pointerup", (e) => {
 const trashZone = document.getElementById("trashZone");
 
 /* =========================
-   PAN DA MÃO (REMOVIDO)
+   NATIVE SCROLL DA MÃO (MOUSEWHEEL)
 ========================= */
+const handVp = document.querySelector(".hand-viewport");
+if (handVp) {
+  handVp.addEventListener("wheel", (e) => {
+    // Apenas se houver barra de rolagem horizontal necessária
+    if (handVp.scrollWidth > handVp.clientWidth) {
+      if (e.deltaY !== 0) {
+        handVp.scrollLeft += e.deltaY;
+        e.preventDefault(); // Evita scroll da tela de fundo se houver
+      }
+    }
+  });
+}
 
 /*====================================
     Delete binder (old nav button)
@@ -842,14 +869,22 @@ function renderResults(list) {
   list.slice(0, 100).forEach(card => {
     const div = document.createElement("div");
     div.className = "result-card";
+    div.dataset.cardId = card.id;
+    div.ondragstart = (e) => { e.preventDefault(); return false; };
+    div.style.touchAction = "none";
+    div.style.userSelect = "none";
 
     const img = document.createElement("img");
     img.loading = "lazy";
     img.src = card.img;               // ✅ large do index (scrydex/pokemontcg.io)
     img.alt = card.name || "Carta";
+    img.draggable = false;
+    img.style.pointerEvents = "none";
+    img.style.userSelect = "none";
     div.appendChild(img);
 
     div.addEventListener("click", () => {
+      if (window._justDragged) return;
       const el = buildCardElement(card.id);
       makeHandCard(el);
       hand.appendChild(el);

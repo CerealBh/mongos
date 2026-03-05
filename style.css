@@ -430,17 +430,27 @@ body {
   z-index: 1000;
 }
 
-/* viewport com tudo visível para não cortar hover */
+/* viewport com tudo visível para vertical, mas scroll no horizontal */
 .hand-viewport {
   width: 100%;
   height: 100%;
-  overflow: visible;
-
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 56px 10px 12px;
   /* topo grande pro leque subir sem cortar */
   border-radius: 18px;
-  touch-action: none;
-  /* permite pan com dedo sem o browser “roubar” gesto */
+  touch-action: pan-x;
+  scroll-behavior: smooth;
+  /* Ocultar barra em navegadores padrão */
+  -ms-overflow-style: none;
+  /* IE e Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* Ocultar scrollbar no Chrome/Safari/Edge Moderno */
+.hand-viewport::-webkit-scrollbar {
+  display: none;
 }
 
 /* tracejado só quando vazio */
@@ -457,14 +467,14 @@ body {
   backdrop-filter: none;
 }
 
-/* trilho que o JS move no pan */
+/* trilho que o JS move no pan ou apenas scroll nativo */
 .hand {
   height: 100%;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
+  justify-content: flex-start;
 
-  width: fit-content;
+  width: max-content;
   margin: 0 auto;
 
   padding: 0.3vw 0.6vw;
@@ -820,6 +830,7 @@ body.is-dragging * {
 }
 
 body.is-dragging .card,
-body.is-dragging .img {
+body.is-dragging .img,
+body.is-dragging .result-card {
   pointer-events: none !important;
 }

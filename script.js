@@ -218,6 +218,73 @@ function buildCardElement(cardId) {
 
   el.appendChild(img);
 
+  // Mão = duplo clique vai para slot vazio, botão direito apaga
+  // Binder = clique devolve para mão, botão direito apaga
+  el.addEventListener("click", (e) => {
+    if (window._justDragged || isDragging) return;
+    if (el.dataset.zone === "binder") {
+      // Devolve para a mão
+      const originSlot = el.closest(".slot");
+      const originSheet = originSlot?.closest(".binder-sheet");
+      if (originSlot && originSheet) {
+        const op = parseInt(originSheet.dataset.pageIndex, 10);
+        const os = parseInt(originSlot.dataset.slotIndex, 10);
+        if (!Number.isNaN(op) && !Number.isNaN(os)) binder.pages[op][os] = null;
+      }
+      makeHandCard(el);
+      hand.appendChild(el);
+      saveAll();
+      refreshHandLayout();
+    }
+  });
+
+  el.addEventListener("dblclick", (e) => {
+    // Apenas se estiver na mão ativamos dblclick para mandar para o slot vazio
+    if (window._justDragged || isDragging || el.dataset.zone !== "hand") return;
+
+    // Achar primeiro slot vazio nas abas visíveis (a folha aberta atual)
+    const visibleSheets = binderPage.querySelectorAll(".binder-sheet:not(.is-empty)");
+    let targetSlot = null;
+
+    for (const sheet of visibleSheets) {
+      const emptySlots = Array.from(sheet.querySelectorAll(".slot")).filter(s => !s.querySelector(".card"));
+      if (emptySlots.length > 0) {
+        targetSlot = emptySlots[0];
+        break; // Achou o primeiro espaço vazio das abertas
+      }
+    }
+
+    if (targetSlot) {
+      targetSlot.appendChild(el);
+      makeBinderCard(el);
+
+      // Limpa do modelo original se precisar (não precisa do model origin pois estava na Mão e o serialize vai recalcular a mão pelo DOM de qualquer jeito, 
+      // mas precisamos re-salvar)
+      saveAll();
+      refreshHandLayout();
+    }
+  });
+
+  // Botão direito = Lixeira
+  el.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (window._justDragged || isDragging) return;
+
+    if (el.dataset.zone === "binder") {
+      const originSlot = el.closest(".slot");
+      const originSheet = originSlot?.closest(".binder-sheet");
+      if (originSlot && originSheet) {
+        const op = parseInt(originSheet.dataset.pageIndex, 10);
+        const os = parseInt(originSlot.dataset.slotIndex, 10);
+        if (!Number.isNaN(op) && !Number.isNaN(os)) binder.pages[op][os] = null;
+      }
+    }
+
+    el.remove();
+    saveAll();
+    refreshHandLayout();
+  });
+
   return el;
 }
 
@@ -451,12 +518,28 @@ let sourceCard = null;
 let startX = 0;
 let startY = 0;
 
+let isPanningHand = false;
+let startScrollLeft = 0;
+
 document.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return; // Apenas clique esquerdo
 
+  const handVpTarget = e.target.closest(".hand-viewport");
+  if (handVpTarget) {
+    startScrollLeft = handVpTarget.scrollLeft;
+  }
+
   // Se clicamos em uma carta ou num resultado de busca
   const card = e.target.closest(".card") || e.target.closest(".result-card");
-  if (!card || !card.dataset.cardId) return;
+  if (!card || !card.dataset.cardId) {
+    // Se não clicou em carta, mas clicou no fundo da mão, prepara pra arrastar a tela (pan)
+    if (handVpTarget) {
+      isPanningHand = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    }
+    return;
+  }
 
   sourceCard = card;
   startX = e.clientX;
@@ -464,6 +547,14 @@ document.addEventListener("pointerdown", (e) => {
 });
 
 document.addEventListener("pointermove", (e) => {
+  if (isPanningHand) {
+    const handVp = document.querySelector(".hand-viewport");
+    if (handVp) {
+      handVp.scrollLeft = startScrollLeft - (e.clientX - startX);
+    }
+    return;
+  }
+
   if (!sourceCard) return;
 
   if (!isDragging) {
@@ -471,6 +562,13 @@ document.addEventListener("pointermove", (e) => {
     const dx = Math.abs(e.clientX - startX);
     const dy = Math.abs(e.clientY - startY);
     if (dx > 4 || dy > 4) {
+      // Se a carta estiver na mão e o movimento inicial for para o lado (dx > dy), 
+      // cancelamos o clique para iniciar a rolagem lateral (pan manual).
+      if (sourceCard.dataset.zone === "hand" && dx > dy) {
+        sourceCard = null;
+        isPanningHand = true;
+        return;
+      }
       isDragging = true;
       document.body.classList.add("is-dragging");
       sourceCard.classList.add("is-dragging-source");
@@ -495,6 +593,10 @@ document.addEventListener("pointermove", (e) => {
 });
 
 document.addEventListener("pointerup", (e) => {
+  if (isPanningHand) {
+    isPanningHand = false;
+  }
+
   if (!sourceCard) return;
 
   if (isDragging) {
@@ -581,9 +683,12 @@ document.addEventListener("pointerup", (e) => {
     // Salvar e Renderizar de qualquer forma
     saveAll();
     refreshHandLayout();
+
+    // Delay reset variables when dropping to allow click prevention
+    setTimeout(() => { window._justDragged = false; }, 50);
   }
 
-  // Reset variáveis
+  // Reset check (For when dragging finishes OR sourceCard existed but drag never initiated)
   sourceCard = null;
   isDragging = false;
 });
@@ -591,12 +696,72 @@ document.addEventListener("pointerup", (e) => {
 const trashZone = document.getElementById("trashZone");
 
 /* =========================
-   NATIVE SCROLL DA MÃO (MOUSEWHEEL)
+   EDGE HOVER SCROLL DA MÃO (MOUSE)
 ========================= */
 const handVp = document.querySelector(".hand-viewport");
+let edgeScrollRAF = null;
+let edgeScrollVelocity = 0;
+let wheelBlockTimeout = null;
+let isWheelBlocking = false;
+
+function edgeScrollLoop() {
+  if (edgeScrollVelocity !== 0 && handVp) {
+    handVp.scrollLeft += edgeScrollVelocity;
+  }
+  edgeScrollRAF = requestAnimationFrame(edgeScrollLoop);
+}
+
 if (handVp) {
+  // Ativa o loop de animação permanente
+  edgeScrollRAF = requestAnimationFrame(edgeScrollLoop);
+
+  handVp.addEventListener("pointermove", (e) => {
+    // Se estiver arrastando com o dedo (touch/pen), arrastando alguma carta, 
+    // ou se mal acabou de usar a rodinha do mouse, aborta o hover autoscroll pra não brigar
+    if (e.pointerType !== "mouse" || isDragging || isPanningHand || isWheelBlocking) {
+      edgeScrollVelocity = 0;
+      return;
+    }
+
+    const rect = handVp.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const w = rect.width;
+
+    // Zonas de ativação: 15% nas bordas da gaveta
+    const edgeThreshold = w * 0.15;
+    const maxSpeed = 12; // Velocidade máxima do deslize
+
+    if (x < edgeThreshold) {
+      // Perto da borda esquerda: intensidade regressiva (mais pra ponta = mais rápido)
+      const intensity = 1 - (x / edgeThreshold);
+      edgeScrollVelocity = -(intensity * maxSpeed);
+    } else if (x > w - edgeThreshold) {
+      // Perto da borda direita
+      const distFromRight = w - x;
+      const intensity = 1 - (distFromRight / edgeThreshold);
+      edgeScrollVelocity = intensity * maxSpeed;
+    } else {
+      // No meio da gaveta, o scroll para suavemente
+      edgeScrollVelocity = 0;
+    }
+  });
+
+  handVp.addEventListener("pointerleave", () => {
+    // Se o mouse sair totalmente do componente, congela a gaveta imediatamente
+    edgeScrollVelocity = 0;
+  });
+
   handVp.addEventListener("wheel", (e) => {
-    // Apenas se houver barra de rolagem horizontal necessária
+    // Apenas se houver barra de rolagem horizontal necessária (manter giro da rodinha opcional)
+    if (isDragging || isPanningHand) return; // Bloqueia scroll se estiver arrastando/interagindo
+
+    // Bloqueia o Edge Scroller de funcionar pelas pontas temporariamente pra não "brigar"
+    isWheelBlocking = true;
+    clearTimeout(wheelBlockTimeout);
+    wheelBlockTimeout = setTimeout(() => {
+      isWheelBlocking = false;
+    }, 250); // 250ms de trava no Edge Hover depois do último pulso da rodinha
+
     if (handVp.scrollWidth > handVp.clientWidth) {
       if (e.deltaY !== 0) {
         handVp.scrollLeft += e.deltaY;
@@ -679,32 +844,59 @@ function refreshBinderGallery() {
     const d = new Date(b.createdAt);
     const dateStr = d.toLocaleDateString();
 
-    // Pegar algumas cartas reais para fazer a capa-thumbnail do binder
+    // Renderiza a Capa (Página 0) inteira como um Mini-Grid
     const targetBinderObj = BinderStore.loadBinder(b.id);
     let thumbnailsHTML = "";
-    if (targetBinderObj && targetBinderObj.pages && targetBinderObj.pages.length > 0) {
-      // Procura qual o ID da primeira carta preenchida no binder inteiro
-      const allStoredIds = targetBinderObj.pages.flat().filter(Boolean);
-      const coverId = allStoredIds.length > 0 ? allStoredIds[0] : null;
 
-      if (coverId) {
-        const meta = getCardMeta(coverId);
-        if (meta && meta.img) {
-          thumbnailsHTML = `<div class="binder-feature-cover"><img src="${meta.img}" alt="cover"></div>`;
+    if (targetBinderObj && targetBinderObj.pages && targetBinderObj.pages.length > 0) {
+      const coverCards = targetBinderObj.pages[0]; // Array de IDs ou nulls
+      const cols = b.config?.columns || 3;
+      const rows = b.config?.rows || 3;
+
+      let gridCellsHTML = "";
+      // Cria todos os X slots numéricos simulando a página
+      for (let i = 0; i < rows * cols; i++) {
+        const cardId = coverCards[i];
+        if (cardId) {
+          const meta = getCardMeta(cardId);
+          if (meta && meta.img) {
+            gridCellsHTML += `<div class="mini-slot"><img src="${meta.img}" alt="card"></div>`;
+          } else {
+            gridCellsHTML += `<div class="mini-slot"></div>`;
+          }
         } else {
-          thumbnailsHTML = `<div class="binder-feature-cover empty"></div>`;
+          gridCellsHTML += `<div class="mini-slot"></div>`;
         }
-      } else {
-        thumbnailsHTML = `<div class="binder-feature-cover empty"></div>`;
       }
+
+      thumbnailsHTML = `
+        <div class="binder-feature-cover">
+          <div class="binder-mini-grid" style="grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr)">
+            ${gridCellsHTML}
+          </div>
+        </div>
+        <div class="binder-hover-popup">
+          <div class="binder-mini-grid" style="grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr)">
+            ${gridCellsHTML}
+          </div>
+        </div>
+      `;
+    } else {
+      thumbnailsHTML = `<div class="binder-feature-cover empty"></div>`;
     }
+
+    const cfgCols = b.config?.columns || 0;
+    const cfgRows = b.config?.rows || 0;
+    const pages = b.config?.totalPages || 0;
 
     card.innerHTML = `
       ${thumbnailsHTML}
-      <h4>${b.name}</h4>
-      <p>${b.config?.totalPages || 0} páginas</p>
-      <p style="font-size:10px; opacity:0.6">${dateStr}</p>
-      <button class="delete-btn" title="Excluir este binder">🗑</button>
+      <div class="binder-info-overlay">
+        <h4>${b.name}</h4>
+        <p>${cfgCols}x${cfgRows} | ${pages} páginas</p>
+        <p style="font-size:10px; opacity:0.6">${dateStr}</p>
+        <button class="delete-btn" title="Excluir este binder">🗑</button>
+      </div>
     `;
 
     // Clicar no cartão abre o binder

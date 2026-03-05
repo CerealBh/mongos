@@ -280,38 +280,74 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* Remove rolagem lateral quebrada */
   padding: 10px;
+
+  /* Remove scrollbars nativas feias do Windows */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.binder-gallery::-webkit-scrollbar {
+  display: none;
 }
 
 .binder-preview {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(15, 23, 42, 0.9);
   border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 12px;
-  padding: 1rem;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  justify-content: flex-end;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  /* Removido o overflow: hidden; daqui para que o Popup enorme possa saltar "pra fora" desse quadrado.
+     A clipagem das capas será repassada unicamente para o fundo absoluto da galeria. */
 }
 
 .binder-preview:hover {
   transform: translateY(-4px);
   border-color: #3b82f6;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
-  background: rgba(30, 41, 59, 0.9);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+  z-index: 100;
+  /* Garante que o hover deste card passe por cima dos demais (essencial pro popup não esconder atrás de cards vizinhos) */
 }
 
-.binder-preview h4 {
+.binder-info-overlay {
+  position: relative;
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.65);
+  /* Menos opaco, mais transparente */
+  backdrop-filter: blur(6px);
+  /* Efeito Vidro */
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+
+  /* Encolhe a caixa para o tamanho do texto (shrinkwrap) e a alinha no centro-baixo */
+  align-self: center;
+  margin-bottom: 16px;
+  max-width: 90%;
+}
+
+.binder-info-overlay h4 {
   margin: 0;
-  margin-top: 5px;
   font-size: 16px;
   color: #f8fafc;
   word-wrap: break-word;
+  word-break: break-all;
+  /* Evita que nomes bizarramente longos sem espaço escapem pelo lado da caixa invisível */
 }
 
-.binder-preview p {
+.binder-info-overlay p {
   margin: 0;
   font-size: 12px;
   color: #94a3b8;
@@ -322,7 +358,7 @@ body {
   top: 10px;
   right: 10px;
   background: rgba(239, 68, 68, 0.2);
-  border: none;
+  border: 1px solid rgba(239, 68, 68, 0.4);
   color: #f87171;
   width: 28px;
   height: 28px;
@@ -333,6 +369,8 @@ body {
   justify-content: center;
   transition: all 0.2s;
   opacity: 0;
+  z-index: 9999;
+  /* Fica acima de tudo pra não conflitar com o hover popup */
 }
 
 .binder-preview:hover .delete-btn {
@@ -413,17 +451,19 @@ body {
 /* ================= MÃO (viewport + pan + arco) ================= */
 .hand-container {
   position: absolute;
-  bottom: 6vh;
+  bottom: 2vh;
   left: 50%;
   transform: translateX(-50%);
   width: 60vw;
   max-width: 800px;
 
-  height: 18vh;
-  max-height: 220px;
+  /* Altura aumentada significativamente para caber as cartas + animações dentro da caixa de rolagem */
+  height: 32vh;
+  max-height: 350px;
 
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  /* alinhado por baixo para que o crescimento seja pra cima */
   justify-content: center;
 
   overflow: visible;
@@ -436,8 +476,8 @@ body {
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 56px 10px 12px;
-  /* topo grande pro leque subir sem cortar */
+  /* Espaço interno generoso para cima e para baixo para a carta rodar e subir no Hover sem bater nas paredes invisíveis da div */
+  padding: 100px 20px 40px;
   border-radius: 18px;
   touch-action: pan-x;
   scroll-behavior: smooth;
@@ -477,7 +517,8 @@ body {
   width: max-content;
   margin: 0 auto;
 
-  padding: 0.3vw 0.6vw;
+  /* padding left ampliado para compensar a margem negativa que aplicaremos a TODAS as cartas */
+  padding: 0.3vw 0.6vw 0.3vw calc(0.6vw + 2.2vw);
   transform: translateX(0px);
 
   overflow: visible;
@@ -492,6 +533,9 @@ body {
   height: auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
+
+  /* Margem negativa em TODAS as cartas (inclusive a 1ª) para evitar o flicker do first-child saltando a margem pra 0 e quebrando as transições. */
+  margin-left: -2.2vw;
 
   transform-origin: bottom center;
 
@@ -508,16 +552,10 @@ body {
   will-change: transform;
 }
 
-/* overlap do leque */
-.hand .card:not(:first-child) {
-  margin-left: -2.2vw;
-}
-
-/* ao passar o mouse na mão, abre levemente o leque */
-/* Só abre levemente quando uma carta está em hover (menos “sanfona”) */
-/*.hand:has(.card:hover) .card:not(:first-child){
-  margin-left: -1.6vw;
-}*/
+/* =======================================================
+  Os overlaps ':not(:first-child)' foram deletados para
+  impedo salto de Layout 'Flicker' ao retirar cartas
+======================================================= */
 
 /* hover: destaque (o JS coloca hover-scale/hover-rotate/hover-lift) */
 .hand .card:hover {
@@ -528,11 +566,11 @@ body {
 
 /* responsivo */
 @media (max-width: 600px) {
-  .hand .card:not(:first-child) {
+
+  /* Mesma lógica responsiva (só mude se redefinir as margens vw) */
+  .hand .card {
     margin-left: -2.2vw;
   }
-
-  /*.hand:hover .card:not(:first-child){ margin-left: -12px; } */
 }
 
 /* ================= Dropzone invisível ================= */
@@ -761,31 +799,128 @@ body,
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
 }
 
-/* ================= PREVIEWS DA GALERIA (Thumb Única) ================= */
+/* ================= PREVIEWS DA GALERIA (Mini Fichário Full Background) ================= */
 
 .binder-feature-cover {
+  position: absolute;
+  /* Espalha pelo background do card inteiro */
+  inset: 0;
   width: 100%;
-  height: 140px;
-  background: rgba(15, 23, 42, 0.8);
-  border-radius: 8px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible;
-  padding: 10px;
+  overflow: hidden;
+  border-radius: 11px;
+  /* Aplica internamente o arredondamento da galeria mãe pra não vazar pra fora do card */
+  padding: 8px;
+  opacity: 0.8;
+  /* Dá uma texturizada leve pra não gritar tanto nas cores */
 }
 
-.binder-feature-cover img {
+.binder-mini-grid {
+  display: grid;
+  gap: 3px;
   width: 100%;
+  /* Agora pode esticar a vontade pro tamanho da div pai */
   height: 100%;
-  object-fit: contain;
-  /* subtle drop shadow to make it pop like a real card inside */
-  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
+  max-width: 100%;
+  /* Impede de esticar a grid pra fora se tiver muitas colunas */
+  aspect-ratio: auto;
+  /* Deixa a grid calcular sozinha baseado nas colunas, sem fixar 5/7 do pai */
+  justify-content: center;
+  /* Centraliza as colunas que sobrarem */
+  align-content: center;
+  /* Centraliza as linhas verticalmente */
   transition: transform 0.2s ease;
 }
 
-.binder-preview:hover .binder-feature-cover img {
-  transform: scale(1.1) translateY(-5px);
+.binder-mini-grid .mini-slot {
+  /* forçar aspecto da CARTA individualmente pra que ela cresça dentro da grade respeitando Pokemon TCG 5/7 */
+  aspect-ratio: 5 / 7;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  /* Necessário para grid auto-layout não explodir divs filhos */
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 2px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.binder-mini-grid .mini-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Contain: Não arranca as laterais nem distorce proporções, mantendo carta original visível. */
+}
+
+/* ================= POPUP DE HOVER DELAY (PROPORÇÃO REAL) ================= */
+
+.binder-hover-popup {
+  position: absolute;
+  /* Ancoramos o popup no topo do card ao invés de no meio, pra ele "escorrer" pra baixo e nunca cortar a cabeça no Body da janela principal */
+  top: 10px;
+  left: 50%;
+  transform-origin: top center;
+  transform: translateX(-50%) scale(0.9);
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9);
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 99999;
+
+  /* Permite ver o popup todo sem barras de rolagem estranhas esmagando */
+  overflow: visible;
+
+  /* Oculto por padrão, não bloqueia o mouse */
+  opacity: 0;
+  pointer-events: none;
+
+  /* Animação que espera só na hora de APARECER. Na hora de SUMIR, é instantâneo. */
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition-delay: 0s;
+}
+
+/* Quando o mouse descansa em cima do preview, exibe o popup real */
+.binder-preview:hover {
+  z-index: 100;
+  /* Bring hovered preview to front */
+}
+
+/* Só abre se o mouse NÃO estiver exatamente em cima do botão delete */
+.binder-preview:hover:not(:has(.delete-btn:hover)) .binder-hover-popup {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) scale(1);
+  transition-delay: 0.8s;
+  /* Aguarda 800ms antes de pular na tela (Tooltip) */
+}
+
+/* O Grid dentro do Popup não tem limitações do preview pai, ele cresce usando as dimensões exatas fixas */
+.binder-hover-popup .binder-mini-grid {
+  justify-content: center;
+  align-content: center;
+  /* Override das limitações do grid filho, permitindo que ele exploda o tamanho. Sem height maximo para nao gerar scroll. */
+  width: max-content;
+  max-width: none;
+  height: max-content;
+  overflow: visible;
+}
+
+.binder-hover-popup .mini-slot {
+  /* Tamanho real fixo das miniaturas no popup para forçar escala física fiel às proporções estranhas */
+  width: clamp(25px, 3.5vw, 45px);
+  height: auto;
+}
+
+.binder-preview:hover .binder-feature-cover .binder-mini-grid {
+  transform: scale(1.08) translateY(-2px);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6));
 }
 
 .binder-feature-cover.empty {

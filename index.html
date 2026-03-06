@@ -60,37 +60,46 @@
 
 		<!-- Busca (HUD Flutuante desatrelada do Fichário) -->
 		<div class="search-panel">
-			<input id="searchInput" type="text" placeholder="Buscar carta (ex: Gengar, Pikachu)..." autocomplete="off">
+			<div class="search-wrap">
+				<input id="searchInput" type="text" placeholder="Buscar carta (ex: Gengar, Pikachu)..."
+					autocomplete="off">
+				<div class="search-lang-filters">
+					<label><input type="checkbox" class="lang-chk" value="pt" checked> PT</label>
+					<label><input type="checkbox" class="lang-chk" value="en"> EN</label>
+					<label><input type="checkbox" class="lang-chk" value="ja"> JP</label>
+				</div>
+			</div>
 			<div id="searchResults" class="search-results"></div>
 		</div>
 
 		<!-- HUD Top Left -->
-		<div class="hud-top-left">
+		<div class="hud-top-left hud-element">
 			<button id="manageBinders" class="hud-btn" title="Gerenciar Pastas">📚</button>
 		</div>
 
 		<!-- HUD Top Right -->
-		<div class="hud-top-right">
+		<div class="hud-top-right hud-element">
 			<button id="deleteBinder" class="hud-btn hud-danger" title="Excluir Pasta">🗑</button>
 		</div>
 
 		<!-- HUD Top Center -->
-		<div class="hud-top-center">
+		<div class="hud-top-center hud-element">
 			<span id="pageIndicator" class="hud-badge">Página 1</span>
 		</div>
 
 		<!-- HUD Mid Left -->
-		<div class="hud-mid-left">
+		<div class="hud-mid-left hud-element">
 			<button id="prevPage" class="hud-nav-btn">◀</button>
 		</div>
 
 		<!-- HUD Mid Right -->
-		<div class="hud-mid-right">
+		<div class="hud-mid-right hud-element">
 			<button id="nextPage" class="hud-nav-btn">▶</button>
 		</div>
 
 		<!-- HUD Bottom Right -->
-		<div class="hud-bottom-right">
+		<div class="hud-bottom-right hud-element">
+			<button id="removePage" class="hud-btn" title="Remover Página">➖</button>
 			<button id="addPage" class="hud-btn" title="Adicionar Página">➕</button>
 			<button id="toggleDisplayMode" class="hud-btn" title="Alternar Modo Livro">📖</button>
 			<input type="range" id="binderZoom" class="zoom-slider" min="0.4" max="2" step="0.05" value="1"

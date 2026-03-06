@@ -1031,7 +1031,33 @@ body,
   /* Contain: Não arranca as laterais nem distorce proporções, mantendo carta original visível. */
 }
 
-/* ================= POPUP DE HOVER DELAY (PROPORÇÃO REAL) ================= */
+.result-card {
+  width: 90px;
+  aspect-ratio: 5/7;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s, border-color 0.2s;
+  overflow: hidden;
+  position: relative;
+}
+
+.result-card.no-img::after {
+  content: attr(data-name);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: #f8fafc;
+  text-align: center;
+  width: 90%;
+  padding: 4px;
+  box-sizing: border-box;
+  word-wrap: break-word;
+  pointer-events: none;
+}
 
 .binder-hover-popup {
   position: absolute;
@@ -1062,7 +1088,8 @@ body,
   pointer-events: none;
 
   /* Animação que espera só na hora de APARECER. Na hora de SUMIR, é instantâneo. */
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.3s ease,
+    transform 0.3s ease;
   transition-delay: 0s;
 }
 

@@ -105,14 +105,30 @@ const MOVE_TOLERANCE = 10;    // se mexer antes, cancela armar drag
 
 let cardsIndex = null;     // array
 let cardsById = null;      // Map(id -> {id,name,img})
+let nameMap = {};          // lowercase name -> { en, pt, ja, fr, ... }
+let jpSetIndex = {};       // { S1W: { set_total: 60, ... }, ... }
 
 async function loadCardsIndex() {
   if (cardsIndex && cardsById) return { cardsIndex, cardsById };
 
-  const res = await fetch("./data/cards-index.json", { cache: "no-store" });
-  if (!res.ok) throw new Error(`Falha ao carregar cards-index.json (HTTP ${res.status})`);
+  const [indexRes, nameMapRes, jpIndexRes] = await Promise.all([
+    fetch("./data/cards-index.json", { cache: "no-store" }),
+    fetch("./data/name-map.json", { cache: "no-store" }).catch(() => null),
+    fetch("./data/jp-set-index.json", { cache: "no-store" }).catch(() => null)
+  ]);
 
-  cardsIndex = await res.json();
+  if (!indexRes.ok) throw new Error(`Falha ao carregar cards-index.json (HTTP ${indexRes.status})`);
+
+  cardsIndex = await indexRes.json();
+
+  if (nameMapRes?.ok) {
+    nameMap = await nameMapRes.json();
+  }
+
+  if (jpIndexRes?.ok) {
+    const data = await jpIndexRes.json();
+    jpSetIndex = data.pokemon_tcg_jp_set_index?.sets || {};
+  }
 
   cardsById = new Map();
   for (const c of cardsIndex) {
@@ -327,7 +343,7 @@ function buildCardElement(cardId) {
       const magImg = document.getElementById("cardMagnifierImg");
       const magDiv = document.getElementById("cardMagnifier");
       if (magImg && magDiv && meta?.img) {
-        magImg.src = meta.img;
+        magImg.src = meta.highImg || meta.img;
         magDiv.classList.add("show");
       }
     }, 600);
@@ -336,7 +352,13 @@ function buildCardElement(cardId) {
   const hideMagnifier = () => {
     if (magnifierTimeout) clearTimeout(magnifierTimeout);
     const magDiv = document.getElementById("cardMagnifier");
-    if (magDiv) magDiv.classList.remove("show");
+    if (magDiv) {
+      magDiv.classList.remove("show");
+      setTimeout(() => {
+        const magImg = document.getElementById("cardMagnifierImg");
+        if (magImg && !magDiv.classList.contains("show")) magImg.src = "";
+      }, 200); // Clears after transition
+    }
   };
 
   el.addEventListener("mouseleave", hideMagnifier);
@@ -561,6 +583,38 @@ document.getElementById("addPage")?.addEventListener("click", () => {
   // Adiciona um novo array (nova página) cheio de null preenchendo todos os slots (rows * columns)
   const totalSlots = binder.config.rows * binder.config.columns;
   binder.pages.push(Array(totalSlots).fill(null));
+
+  saveAll();
+  renderBinder();
+});
+
+document.getElementById("removePage")?.addEventListener("click", () => {
+  if (!binder) return;
+  saveAll();
+
+  if (binder.config.totalPages <= 1) {
+    alert("O fichário precisa ter pelo menos 1 página.");
+    return;
+  }
+
+  // Verifica se a página tem alguma carta
+  const pageData = binder.pages[currentPage];
+  const hasCards = pageData && pageData.some(c => c !== null);
+
+  if (hasCards) {
+    if (!confirm("Esta página possui cartas. Tem certeza que deseja removê-la?")) {
+      return;
+    }
+  }
+
+  // Remove a página atual
+  binder.pages.splice(currentPage, 1);
+  binder.config.totalPages -= 1;
+
+  // Ajusta a página atual se estourou o limite (por ex: estávamos na última página)
+  if (currentPage >= binder.config.totalPages) {
+    currentPage = binder.config.totalPages - 1;
+  }
 
   saveAll();
   renderBinder();
@@ -882,8 +936,10 @@ document.getElementById("deleteBinder")?.addEventListener("click", () => {
 
 function pickFirstIdByName(name) {
   const q = name.trim().toLowerCase();
-  const found = cardsIndex.find(c => (c.name || "").toLowerCase() === q)
-    || cardsIndex.find(c => (c.name || "").toLowerCase().includes(q));
+  const found = cardsIndex.find(c =>
+    (c.lang === 'pt' || c.lang === 'en') &&
+    ((c.name || "").toLowerCase() === q || (c.name || "").toLowerCase().includes(q))
+  );
   return found?.id || null;
 }
 
@@ -896,7 +952,7 @@ async function seedHandIfEmpty() {
     return;
   }
 
-  const wanted = ["Fezandipiti ex", "Poké Pad", "Mega Meganium", "Mega Meganium ex"];
+  const wanted = ["Fezandipiti ex", "Poké Pad", "Meganium", "Pikachu"];
   const ids = [];
 
   for (const n of wanted) {
@@ -1038,6 +1094,10 @@ function setBinderUI(visible) {
   // Page Controls (Header)
   const pc = document.querySelector(".page-controls");
   if (pc) pc.style.display = displayStyle;
+
+  // HUD Elements
+  const hudElements = document.querySelectorAll(".hud-element");
+  hudElements.forEach(el => el.style.display = displayStyle);
 }
 
 function showBinderHome() {
@@ -1139,6 +1199,35 @@ function initBinder() {
    - só funciona se existir #searchInput e #searchResults no HTML
 ========================= */
 
+function getFallbackUrl(card, sourceIndex) {
+  if (!card.originalId) return null;
+
+  // Extrai Set e Número (ex: SV11W-058 -> SV11W, 58)
+  const parts = card.originalId.split('-');
+  if (parts.length < 2) return null;
+
+  const setCode = parts[0];
+  const numShort = parts[1].replace(/^0+/, '') || '0'; // Remove zeros (ex: 58)
+
+  const sources = [
+    // Fonte 1: DigitalOcean CDN (TPC) - Bypass Firewall (Padrão: _R_JP)
+    `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/${setCode}/${setCode}_${numShort}_R_JP.png`,
+
+    // Fonte 2: DigitalOcean CDN (TPC) - Variação Common (_C_JP)
+    `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/${setCode}/${setCode}_${numShort}_C_JP.png`,
+
+    // Fonte 3: DigitalOcean CDN (TPC) - Variação Uncommon (_U_JP)
+    `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/${setCode}/${setCode}_${numShort}_U_JP.png`,
+
+    // Fonte 4: Limitless S3 (Original)
+    `https://limitless-tcg.s3.amazonaws.com/cards/jp/${setCode}/${numShort}.png`
+  ];
+
+  return sources[sourceIndex] || null;
+}
+
+
+
 function renderResults(list) {
   const box = document.getElementById("searchResults");
   if (!box) return;
@@ -1148,6 +1237,13 @@ function renderResults(list) {
   list.slice(0, 100).forEach(card => {
     const div = document.createElement("div");
     div.className = "result-card";
+    if (!card.img) {
+      div.classList.add("no-img");
+      const nameKey = (card.name || "").toLowerCase();
+      const mapping = nameMap[nameKey];
+      const displayName = mapping ? (mapping.pt || mapping.en || card.name) : card.name;
+      div.dataset.name = displayName;
+    }
     div.dataset.cardId = card.id;
     div.ondragstart = (e) => { e.preventDefault(); return false; };
     div.style.touchAction = "none";
@@ -1155,8 +1251,51 @@ function renderResults(list) {
 
     const img = document.createElement("img");
     img.loading = "lazy";
-    img.src = card.img;               // ✅ large do index (scrydex/pokemontcg.io)
+
+    // Debug Label (Temporário)
+    const sourceLbl = document.createElement("div");
+    sourceLbl.style = "position:absolute; bottom:2px; left:2px; background:rgba(0,0,0,0.7); color:#fff; font-size:9px; padding:2px 4px; border-radius:3px; z-index:2; pointer-events:none; font-family:sans-serif;";
+
+    const updateSourceLabel = (src, isFallback) => {
+      if (!src) {
+        sourceLbl.textContent = "Sem Foto";
+        return;
+      }
+      if (!isFallback) {
+        sourceLbl.textContent = "TCGdex";
+      } else {
+        const fallIdx = parseInt(img.dataset.fallbackIndex || "0");
+        sourceLbl.textContent = fallIdx === 0 ? "Limitless (JP)" : "Limitless (EN)";
+      }
+    };
+
+    // Tenta a imagem principal (TCGdex) ou já começa pelo fallback se for null
+    img.src = card.img || getFallbackUrl(card, 0);
     img.alt = card.name || "Carta";
+
+    updateSourceLabel(img.src, !card.img);
+    div.appendChild(sourceLbl);
+
+
+    // Se não tiver imagem NEM no index NEM no primeiro fallback, esconde
+    if (!card.img && !img.src) img.style.display = "none";
+
+    img.onerror = () => {
+      const currentSource = img.dataset.fallbackIndex ? parseInt(img.dataset.fallbackIndex) : 0;
+      const nextUrl = getFallbackUrl(card, currentSource + 1);
+
+      if (nextUrl) {
+        img.dataset.fallbackIndex = currentSource + 1;
+        img.src = nextUrl;
+        updateSourceLabel(nextUrl, true);
+      } else {
+        // Acabaram as tentativas
+        img.style.display = "none";
+        div.classList.add("no-img");
+        updateSourceLabel(null, true);
+      }
+    };
+
     img.draggable = false;
     img.style.pointerEvents = "none";
     img.style.userSelect = "none";
@@ -1215,7 +1354,7 @@ function renderResults(list) {
         const magImg = document.getElementById("cardMagnifierImg");
         const magDiv = document.getElementById("cardMagnifier");
         if (magImg && magDiv && card.img) {
-          magImg.src = card.img;
+          magImg.src = card.highImg || card.img;
           magDiv.classList.add("show");
         }
       }, 600);
@@ -1224,7 +1363,13 @@ function renderResults(list) {
     const hideMagnifier = () => {
       if (magnifierTimeout) clearTimeout(magnifierTimeout);
       const magDiv = document.getElementById("cardMagnifier");
-      if (magDiv) magDiv.classList.remove("show");
+      if (magDiv) {
+        magDiv.classList.remove("show");
+        setTimeout(() => {
+          const magImg = document.getElementById("cardMagnifierImg");
+          if (magImg && !magDiv.classList.contains("show")) magImg.src = "";
+        }, 200);
+      }
     };
 
     div.addEventListener("mouseleave", hideMagnifier);
@@ -1241,20 +1386,106 @@ function setupSearch() {
 
   let t = null;
 
+  const getActiveLangs = () => {
+    return Array.from(document.querySelectorAll('.lang-chk'))
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+  };
+
   const doSearch = () => {
-    const q = input.value.trim().toLowerCase();
-    if (!q) {
+    const raw = input.value.trim();
+    const q = raw.toLowerCase();
+    const activeLangs = getActiveLangs();
+
+    if (!q || activeLangs.length === 0) {
       box.innerHTML = "";
       return;
     }
 
-    const out = cardsIndex.filter(c => (c.name || "").toLowerCase().includes(q));
+    // --- Parse local ID and Total from query ---
+    // Supported formats: "098", "098/102", "tarsila (098/102)", "tarsila (098)"
+    let localIdQuery = null;     // the number part (e.g. "98")
+    let totalQuery = null;       // the literal total part from query (e.g. "102")
+    let totalCandidates = [];    // candidates for setTotal matching
+    let nameQuery = q;
+
+    const idPattern = /\(?(\d+)(?:\/(\d*))?\)?/;
+    const idMatch = q.match(idPattern);
+
+    if (idMatch) {
+      localIdQuery = idMatch[1].replace(/^0+/, '') || '0';
+      totalQuery = idMatch[2] ? idMatch[2].replace(/^0+/, '') : null;
+
+      // Removed the global totalCandidates to respect user request for specific sets only
+
+      // Remove the WHOLE matched ID part from the name searching string
+      // This prevents "/" or digits from polluting name search
+      nameQuery = q.replace(idMatch[0], '').replace(/[()]/g, '').trim();
+    }
+
+    // --- Expand name aliases ---
+    const aliases = new Set(nameQuery ? [nameQuery] : []);
+    if (nameQuery) {
+      const exactEntry = nameMap[nameQuery];
+      if (exactEntry) Object.values(exactEntry).forEach(n => aliases.add(n.toLowerCase()));
+
+      for (const [mapKey, entry] of Object.entries(nameMap)) {
+        if (nameQuery.length >= 3 && mapKey.includes(nameQuery)) {
+          Object.values(entry).forEach(n => aliases.add(n.toLowerCase()));
+        }
+      }
+    }
+
+    const out = cardsIndex.filter(c => {
+      if (!activeLangs.includes(c.lang)) return false;
+
+      // Card data
+      const localId = (c.originalId || '').split('-').pop().replace(/^0+/, '') || '0';
+      const setTotal = String(c.total || '');
+
+      const originalId = c.originalId || "";
+      const setCode = originalId.split('-')[0];
+      const jpSetData = jpSetIndex[setCode];
+      const printedTotal = jpSetData ? String(jpSetData.set_total) : null;
+
+      const localIdMatch = localIdQuery !== null ? localId === localIdQuery : true;
+      let totalMatch = true;
+      if (totalQuery !== null) {
+        // Broad check: either it starts with query OR it's a known Japanese set where the query matches the PRINTED total
+        const matchesApiTotal = setTotal.startsWith(totalQuery);
+        const matchesPrintedTotal = printedTotal === totalQuery;
+        totalMatch = matchesApiTotal || matchesPrintedTotal;
+      }
+
+      // Name match
+      const nameLower = (c.name || '').toLowerCase();
+      const nameMatch = aliases.size === 0
+        ? true
+        : aliases.has(nameLower) || [...aliases].some(alias => nameLower.includes(alias));
+
+      if (localIdQuery !== null && nameQuery) {
+        return localIdMatch && totalMatch && nameMatch;
+      } else if (localIdQuery !== null) {
+        return localIdMatch && totalMatch;
+      } else {
+        return nameMatch;
+      }
+    });
+
     renderResults(out);
   };
 
   input.addEventListener("input", () => {
     clearTimeout(t);
     t = setTimeout(doSearch, 120);
+  });
+
+  const langCheckboxes = document.querySelectorAll('.lang-chk');
+  langCheckboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      clearTimeout(t);
+      t = setTimeout(doSearch, 50);
+    });
   });
 }
 

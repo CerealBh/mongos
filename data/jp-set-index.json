@@ -1,0 +1,454 @@
+{
+    "pokemon_tcg_jp_set_index": {
+        "version": "2026-03-06",
+        "scope": "modern_japanese_sets_with_printed_set_code",
+        "notes": [
+            "printed_format = como costuma aparecer na carta",
+            "set_total = denominador principal do set",
+            "secret_rares_can_exceed_total = true",
+            "older_japanese_eras_pre-S_generally_do_not_use_this_modern_short_code_system = true"
+        ],
+        "sets": {
+            "S1W": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "ソード",
+                "name_en": "Sword",
+                "set_total": 60,
+                "printed_format": "NNN/060 S1W"
+            },
+            "S1H": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "シールド",
+                "name_en": "Shield",
+                "set_total": 60,
+                "printed_format": "NNN/060 S1H"
+            },
+            "S2": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "反逆クラッシュ",
+                "name_en": "Rebellion Crash",
+                "set_total": 96,
+                "printed_format": "NNN/096 S2"
+            },
+            "S2a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "VMAXライジング",
+                "name_en": "VMAX Rising",
+                "set_total": 70,
+                "printed_format": "NNN/070 S2a"
+            },
+            "S3": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "ムゲンゾーン",
+                "name_en": "Infinity Zone",
+                "set_total": 100,
+                "printed_format": "NNN/100 S3"
+            },
+            "S3a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "爆炎ウォーカー",
+                "name_en": "Explosive Walker",
+                "set_total": 70,
+                "printed_format": "NNN/070 S3a"
+            },
+            "S4": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "仰天のボルテッカー",
+                "name_en": "Amazing Volt Tackle",
+                "set_total": 100,
+                "printed_format": "NNN/100 S4"
+            },
+            "S4a": {
+                "era": "Sword & Shield",
+                "type": "high_class",
+                "name_jp": "シャイニースターV",
+                "name_en": "Shiny Star V",
+                "set_total": 190,
+                "printed_format": "NNN/190 S4a"
+            },
+            "S4b": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "伝説の鼓動",
+                "name_en": "Legendary Heartbeat",
+                "set_total": 76,
+                "printed_format": "NNN/076 S4b"
+            },
+            "S5I": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "一撃マスター",
+                "name_en": "Single Strike Master",
+                "set_total": 70,
+                "printed_format": "NNN/070 S5I"
+            },
+            "S5R": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "連撃マスター",
+                "name_en": "Rapid Strike Master",
+                "set_total": 70,
+                "printed_format": "NNN/070 S5R"
+            },
+            "S5a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "双璧のファイター",
+                "name_en": "Peerless Fighters",
+                "set_total": 70,
+                "printed_format": "NNN/070 S5a"
+            },
+            "S6H": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "白銀のランス",
+                "name_en": "Silver Lance",
+                "set_total": 70,
+                "printed_format": "NNN/070 S6H"
+            },
+            "S6K": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "漆黒のガイスト",
+                "name_en": "Jet-Black Spirit",
+                "set_total": 70,
+                "printed_format": "NNN/070 S6K"
+            },
+            "S6a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "イーブイヒーローズ",
+                "name_en": "Eevee Heroes",
+                "set_total": 69,
+                "printed_format": "NNN/069 S6a"
+            },
+            "S7D": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "摩天パーフェクト",
+                "name_en": "Skyscraping Perfection",
+                "set_total": 67,
+                "printed_format": "NNN/067 S7D"
+            },
+            "S7R": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "蒼空ストリーム",
+                "name_en": "Blue Sky Stream",
+                "set_total": 67,
+                "printed_format": "NNN/067 S7R"
+            },
+            "S8": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "フュージョンアーツ",
+                "name_en": "Fusion Arts",
+                "set_total": 100,
+                "printed_format": "NNN/100 S8"
+            },
+            "S8a": {
+                "era": "Sword & Shield",
+                "type": "high_class",
+                "name_jp": "25th ANNIVERSARY COLLECTION",
+                "name_en": "25th Anniversary Collection",
+                "set_total": 28,
+                "printed_format": "NNN/028 S8a"
+            },
+            "S8b": {
+                "era": "Sword & Shield",
+                "type": "high_class",
+                "name_jp": "VMAXクライマックス",
+                "name_en": "VMAX Climax",
+                "set_total": 184,
+                "printed_format": "NNN/184 S8b"
+            },
+            "S9": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "スターバース",
+                "name_en": "Star Birth",
+                "set_total": 100,
+                "printed_format": "NNN/100 S9"
+            },
+            "S9a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "バトルリージョン",
+                "name_en": "Battle Region",
+                "set_total": 67,
+                "printed_format": "NNN/067 S9a"
+            },
+            "S10D": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "タイムゲイザー",
+                "name_en": "Time Gazer",
+                "set_total": 67,
+                "printed_format": "NNN/067 S10D"
+            },
+            "S10P": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "スペースジャグラー",
+                "name_en": "Space Juggler",
+                "set_total": 67,
+                "printed_format": "NNN/067 S10P"
+            },
+            "S10a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "ダークファンタズマ",
+                "name_en": "Dark Phantasma",
+                "set_total": 71,
+                "printed_format": "NNN/071 S10a"
+            },
+            "S10b": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "Pokémon GO",
+                "name_en": "Pokémon GO",
+                "set_total": 71,
+                "printed_format": "NNN/071 S10b"
+            },
+            "S11": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "ロストアビス",
+                "name_en": "Lost Abyss",
+                "set_total": 100,
+                "printed_format": "NNN/100 S11"
+            },
+            "S11a": {
+                "era": "Sword & Shield",
+                "type": "enhanced",
+                "name_jp": "白熱のアルカナ",
+                "name_en": "Incandescent Arcana",
+                "set_total": 68,
+                "printed_format": "NNN/068 S11a"
+            },
+            "S12": {
+                "era": "Sword & Shield",
+                "type": "main",
+                "name_jp": "パラダイムトリガー",
+                "name_en": "Paradigm Trigger",
+                "set_total": 98,
+                "printed_format": "NNN/098 S12"
+            },
+            "S12a": {
+                "era": "Sword & Shield",
+                "type": "high_class",
+                "name_jp": "VSTARユニバース",
+                "name_en": "VSTAR Universe",
+                "set_total": 172,
+                "printed_format": "NNN/172 S12a"
+            },
+            "SV1S": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "スカーレットex",
+                "name_en": "Scarlet ex",
+                "set_total": 78,
+                "printed_format": "NNN/078 SV1S"
+            },
+            "SV1V": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "バイオレットex",
+                "name_en": "Violet ex",
+                "set_total": 78,
+                "printed_format": "NNN/078 SV1V"
+            },
+            "SV1a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "トリプレットビート",
+                "name_en": "Triplet Beat",
+                "set_total": 73,
+                "printed_format": "NNN/073 SV1a"
+            },
+            "SV2P": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "スノーハザード",
+                "name_en": "Snow Hazard",
+                "set_total": 71,
+                "printed_format": "NNN/071 SV2P"
+            },
+            "SV2D": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "クレイバースト",
+                "name_en": "Clay Burst",
+                "set_total": 71,
+                "printed_format": "NNN/071 SV2D"
+            },
+            "SV2a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "ポケモンカード151",
+                "name_en": "Pokémon Card 151",
+                "set_total": 165,
+                "printed_format": "NNN/165 SV2a"
+            },
+            "SV3": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "黒炎の支配者",
+                "name_en": "Ruler of the Black Flame",
+                "set_total": 108,
+                "printed_format": "NNN/108 SV3"
+            },
+            "SV3a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "レイジングサーフ",
+                "name_en": "Raging Surf",
+                "set_total": 62,
+                "printed_format": "NNN/062 SV3a"
+            },
+            "SV4K": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "古代の咆哮",
+                "name_en": "Ancient Roar",
+                "set_total": 66,
+                "printed_format": "NNN/066 SV4K"
+            },
+            "SV4M": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "未来の一閃",
+                "name_en": "Future Flash",
+                "set_total": 66,
+                "printed_format": "NNN/066 SV4M"
+            },
+            "SV4a": {
+                "era": "Scarlet & Violet",
+                "type": "high_class",
+                "name_jp": "シャイニートレジャーex",
+                "name_en": "Shiny Treasure ex",
+                "set_total": 190,
+                "printed_format": "NNN/190 SV4a"
+            },
+            "SV5K": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "ワイルドフォース",
+                "name_en": "Wild Force",
+                "set_total": 71,
+                "printed_format": "NNN/071 SV5K"
+            },
+            "SV5M": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "サイバージャッジ",
+                "name_en": "Cyber Judge",
+                "set_total": 71,
+                "printed_format": "NNN/071 SV5M"
+            },
+            "SV5a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "クリムゾンヘイズ",
+                "name_en": "Crimson Haze",
+                "set_total": 66,
+                "printed_format": "NNN/066 SV5a"
+            },
+            "SV6": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "変幻の仮面",
+                "name_en": "Transformation Mask",
+                "set_total": 101,
+                "printed_format": "NNN/101 SV6"
+            },
+            "SV6a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "ナイトワンダラー",
+                "name_en": "Night Wanderer",
+                "set_total": 64,
+                "printed_format": "NNN/064 SV6a"
+            },
+            "SV7": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "ステラミラクル",
+                "name_en": "Stellar Miracle",
+                "set_total": 102,
+                "printed_format": "NNN/102 SV7"
+            },
+            "SV7a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "楽園ドラゴーナ",
+                "name_en": "Paradise Dragona",
+                "set_total": 64,
+                "printed_format": "NNN/064 SV7a"
+            },
+            "SV8": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "超電ブレイカー",
+                "name_en": "Super Electric Breaker",
+                "set_total": 106,
+                "printed_format": "NNN/106 SV8"
+            },
+            "SV8a": {
+                "era": "Scarlet & Violet",
+                "type": "high_class",
+                "name_jp": "テラスタルフェスex",
+                "name_en": "Terastal Fest ex",
+                "set_total": 187,
+                "printed_format": "NNN/187 SV8a"
+            },
+            "SV9": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "バトルパートナーズ",
+                "name_en": "Battle Partners",
+                "set_total": 100,
+                "printed_format": "NNN/100 SV9"
+            },
+            "SV9a": {
+                "era": "Scarlet & Violet",
+                "type": "enhanced",
+                "name_jp": "熱風のアリーナ",
+                "name_en": "Hot Wind Arena",
+                "set_total": 63,
+                "printed_format": "NNN/063 SV9a"
+            },
+            "SV10": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "ロケット団の栄光",
+                "name_en": "Glory of the Rocket Gang",
+                "set_total": 98,
+                "printed_format": "NNN/098 SV10"
+            },
+            "SV11B": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "ブラックボルト",
+                "name_en": "Black Bolt",
+                "set_total": 86,
+                "printed_format": "NNN/086 SV11B"
+            },
+            "SV11W": {
+                "era": "Scarlet & Violet",
+                "type": "main",
+                "name_jp": "ホワイトフレア",
+                "name_en": "White Flare",
+                "set_total": 86,
+                "printed_format": "NNN/086 SV11W"
+            }
+        }
+    }
+}

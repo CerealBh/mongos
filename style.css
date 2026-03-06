@@ -245,11 +245,15 @@ body {
   inset: 0;
   background: radial-gradient(circle at center, #0f172a, #020617);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  /* Permite crescer pra baixo ativando scroll em vez de centralizar verticalmente */
   justify-content: center;
   gap: 2rem;
   z-index: 50;
   padding: 2rem;
+  overflow-y: auto;
+  /* Traz o scroll do Windows pra tela cheia, impedindo o clipping da galeria */
+  overflow-x: hidden;
 }
 
 @media (max-width: 900px) {
@@ -266,7 +270,7 @@ body {
   gap: 1rem;
   width: 100%;
   max-width: 800px;
-  max-height: 80vh;
+  /* Sem mix-height, deixa a galeria crescer até o infinito rolando a roda do mouse na tela */
 }
 
 .gallery-section h2 {
@@ -279,9 +283,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Remove rolagem lateral quebrada */
+  /* Remove overflow-y: auto e overflow-x: hidden pois isso vira uma fronteira Clipping que decepa o Popup */
   padding: 10px;
 
   /* Remove scrollbars nativas feias do Windows */
@@ -327,6 +329,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   display: flex;
+  pointer-events: none;
   flex-direction: column;
   align-items: center;
   text-align: center;
@@ -367,19 +370,49 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+
+  /* Escondido por padrão, mas com delay pra SUMIR, assim dá tempo de clicar se escorregar o mouse */
   opacity: 0;
-  z-index: 9999;
+  pointer-events: none;
+  transition: opacity 0.4s ease 0.1s;
+
+  z-index: 100000;
   /* Fica acima de tudo pra não conflitar com o hover popup */
 }
 
+/* Quando o mouse entra no CAIXOTE DO BINDER, a lixeira aparece e some junto com a explosão do popup */
 .binder-preview:hover .delete-btn {
-  opacity: 1;
+  animation: showAndHideDelete 1.4s forwards;
+}
+
+@keyframes showAndHideDelete {
+  0% {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  15% {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  80% {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  100% {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .binder-preview .delete-btn:hover {
   background: rgba(239, 68, 68, 0.8);
   color: white;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  animation: none !important;
 }
 
 .binder-mini-grid {
@@ -421,6 +454,9 @@ body {
   flex-direction: column;
   gap: 1rem;
   width: 280px;
+  position: sticky;
+  top: 2rem;
+  /* Garante que o menu Criar acompanhe a descida quando a pessoa rolar a galeria pra baixo */
 }
 
 .create-box input,
@@ -457,9 +493,9 @@ body {
   width: 60vw;
   max-width: 800px;
 
-  /* Altura aumentada significativamente para caber as cartas + animações dentro da caixa de rolagem */
-  height: 32vh;
-  max-height: 350px;
+  /* Altura reduzida para ocupar menos a tela na parte inferior */
+  height: 25vh;
+  max-height: 250px;
 
   display: flex;
   align-items: flex-end;
@@ -476,8 +512,8 @@ body {
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  /* Espaço interno generoso para cima e para baixo para a carta rodar e subir no Hover sem bater nas paredes invisíveis da div */
-  padding: 100px 20px 40px;
+  /* Espaço interno apenas suficiente para a carta subir no Hover sem bater nas paredes invisíveis da div */
+  padding: 40px 20px 10px;
   border-radius: 18px;
   touch-action: pan-x;
   scroll-behavior: smooth;
@@ -496,8 +532,9 @@ body {
 /* tracejado só quando vazio */
 .hand-viewport:has(#hand:empty) {
   border: 2px dashed rgba(59, 130, 246, 0.25);
-  backdrop-filter: blur(6px);
-  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.15);
+  /* Bem mais transparente */
 }
 
 /* sem caixa quando tem carta */
@@ -810,41 +847,43 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   border-radius: 11px;
   /* Aplica internamente o arredondamento da galeria mãe pra não vazar pra fora do card */
   padding: 8px;
   opacity: 0.8;
   /* Dá uma texturizada leve pra não gritar tanto nas cores */
+
+  /* Container context to allow the inner grid to use CQ math simulating object-fit: contain */
+  container-type: size;
+}
+
+.binder-feature-cover .binder-mini-grid {
+  /* O grid seleciona a largura máxima que cabe no cover pra não vazar pra fora da capinha */
+  width: min(100cqw, calc(100cqh * (var(--cols, 3) * 5) / (var(--rows, 3) * 7)));
+  height: auto;
 }
 
 .binder-mini-grid {
   display: grid;
   gap: 3px;
-  width: 100%;
-  /* Agora pode esticar a vontade pro tamanho da div pai */
-  height: 100%;
-  max-width: 100%;
-  /* Impede de esticar a grid pra fora se tiver muitas colunas */
-  aspect-ratio: auto;
-  /* Deixa a grid calcular sozinha baseado nas colunas, sem fixar 5/7 do pai */
+  /* Proporção mestre estrita e infalível da grade inteira baseada nas proporções 5:7 puras */
+  aspect-ratio: calc(var(--cols, 3) * 5) / calc(var(--rows, 3) * 7);
+
   justify-content: center;
-  /* Centraliza as colunas que sobrarem */
   align-content: center;
-  /* Centraliza as linhas verticalmente */
   transition: transform 0.2s ease;
+  margin: auto;
 }
 
 .binder-mini-grid .mini-slot {
-  /* forçar aspecto da CARTA individualmente pra que ela cresça dentro da grade respeitando Pokemon TCG 5/7 */
-  aspect-ratio: 5 / 7;
+  /* Como o grid pai já forçou a aspect-ratio da malha elástica perfeitamente alinhada com as resoluções da TCG, a célula só obedece às tracks! */
   width: 100%;
   height: 100%;
   min-height: 0;
-  /* Necessário para grid auto-layout não explodir divs filhos */
-  background: rgba(30, 41, 59, 0.5);
+
+  background: rgba(30, 41, 59, 0.85);
   border-radius: 2px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.25);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -877,6 +916,13 @@ body,
   /* Permite ver o popup todo sem barras de rolagem estranhas esmagando */
   overflow: visible;
 
+  /* Limite de segurança para que grades imensas não vazem da tela */
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   /* Oculto por padrão, não bloqueia o mouse */
   opacity: 0;
   pointer-events: none;
@@ -895,31 +941,43 @@ body,
 /* Só abre se o mouse NÃO estiver exatamente em cima do botão delete */
 .binder-preview:hover:not(:has(.delete-btn:hover)) .binder-hover-popup {
   opacity: 1;
-  pointer-events: auto;
   transform: translateX(-50%) scale(1);
-  transition-delay: 0.8s;
-  /* Aguarda 800ms antes de pular na tela (Tooltip) */
+  transition-delay: 1.2s;
+  /* Aguarda mais tempo antes de pular na tela (Tooltip) */
 }
 
-/* O Grid dentro do Popup não tem limitações do preview pai, ele cresce usando as dimensões exatas fixas */
+/* O Grid dentro do Popup calcula o maior tamanho suportado pelas janelas vs desejo de expansão mantendo cartas na proporção ideal 5/7 */
 .binder-hover-popup .binder-mini-grid {
+  --ratioW: calc(var(--cols, 3) * 5);
+  --ratioH: calc(var(--rows, 3) * 7);
+
+  /* Tamanho ideal das cartas dentro da grade. Diminuí um pouco o máximo para focar numa visualização limpa nas pequenas. */
+  --desiredW: calc(var(--cols, 3) * clamp(35px, 5vw, 65px));
+
+  /* Limites estritos do POPUP (Impede telas 10x10 de engolirem o monitor inteiro para ficar visualmente desconfortável) */
+  --maxPopupW: min(600px, 90vw - 64px);
+  --maxPopupH: min(600px, 80vh - 64px);
+
+  --boundedWByH: calc(var(--maxPopupH) * var(--ratioW) / var(--ratioH));
+
+  /* O grid seleciona de forma estrita a largura máxima e deixa o auto-aspect-ratio do próprio grid gerar a altura mágica */
+  width: min(var(--desiredW), var(--maxPopupW), var(--boundedWByH));
+  height: auto;
+
   justify-content: center;
   align-content: center;
-  /* Override das limitações do grid filho, permitindo que ele exploda o tamanho. Sem height maximo para nao gerar scroll. */
-  width: max-content;
-  max-width: none;
-  height: max-content;
-  overflow: visible;
+  margin: 0;
+  /* Remove a auto margin padrão */
 }
 
 .binder-hover-popup .mini-slot {
-  /* Tamanho real fixo das miniaturas no popup para forçar escala física fiel às proporções estranhas */
-  width: clamp(25px, 3.5vw, 45px);
-  height: auto;
+  /* O popup também respeita o form factor 5/7 da root rule, garantimos auto height */
+  width: 100%;
+  height: 100%;
 }
 
 .binder-preview:hover .binder-feature-cover .binder-mini-grid {
-  transform: scale(1.08) translateY(-2px);
+  transform: scale(1.04) translateY(-2px);
   filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6));
 }
 

@@ -222,8 +222,35 @@ function buildCardElement(cardId) {
   // Binder = clique devolve para mão, botão direito apaga
   el.addEventListener("click", (e) => {
     if (window._justDragged || isDragging) return;
+
+    // Shift + Clique Esquerdo: Envia a carta para o primeiro slot vazio DENTRO DAS PÁGINAS ATUALMENTE ABERTAS E VISÍVEIS
+    if (e.shiftKey && el.dataset.zone === "hand" && binder && binder.pages) {
+      const visibleSheets = binderPage.querySelectorAll(".binder-sheet:not(.is-empty)");
+      let targetSlot = null;
+
+      for (const sheet of visibleSheets) {
+        const emptySlots = Array.from(sheet.querySelectorAll(".slot")).filter(s => !s.querySelector(".card"));
+        if (emptySlots.length > 0) {
+          targetSlot = emptySlots[0];
+          break; // Achou o primeiro espaço vazio das abertas
+        }
+      }
+
+      if (targetSlot) {
+        targetSlot.appendChild(el);
+        makeBinderCard(el);
+        // Temos que Salvar primeiro pro DOM ser lido antes do renderBinder apagar e redesenhar do zero
+        saveAll();
+        renderBinder();
+        refreshHandLayout();
+      } else {
+        console.log("Não há slot livre de cartas visíveis na página atual.");
+      }
+      return;
+    }
+
     if (el.dataset.zone === "binder") {
-      // Devolve para a mão
+      // Devolve para a mão se foi um clique esquerdo normal no binder
       const originSlot = el.closest(".slot");
       const originSheet = originSlot?.closest(".binder-sheet");
       if (originSlot && originSheet) {
@@ -333,7 +360,14 @@ function renderPages(visibleCount) {
     if (currentPage === 0) {
       pageIndexes.push(-1, 0); // -1 represents the empty left side cover block
     } else {
-      pageIndexes.push(currentPage, currentPage + 1);
+      // Se estamos além da capa, a página de ESQUERDA deve SEMPRE ser ímpar num livro de verdade (1-2, 3-4, 5-6)
+      // Garantir que a página da esquerda não vire uma par se as contas derem errado.
+      let leftPage = (currentPage % 2 === 0) ? currentPage - 1 : currentPage;
+
+      // Se leftPage cair abaixo de 1 via bugs exóticos de indice, capar no 1
+      if (leftPage < 1) leftPage = 1;
+
+      pageIndexes.push(leftPage, leftPage + 1);
     }
   } else {
     pageIndexes.push(currentPage);
@@ -444,8 +478,15 @@ document.getElementById("prevPage")?.addEventListener("click", () => {
 
   const isBook = binder.config.displayMode === "book";
   if (isBook) {
-    const step = currentPage === 1 ? 1 : 2;
+    // Navigating back in Book Mode: Se for página 1(spread 1-2), volta pra capa (0).
+    // Senão, volta 2 páginas pros números ímpares anteriores.
+    const step = (currentPage === 1) ? 1 : 2;
     currentPage = Math.max(0, currentPage - step);
+
+    // Safety check para garantir que "left spread" continue ímpar se voltarmos (ex: currentPage nunca seja 2, 4...)
+    if (currentPage > 0 && currentPage % 2 === 0) {
+      currentPage = Math.max(1, currentPage - 1);
+    }
   } else {
     currentPage = Math.max(0, currentPage - 1);
   }
@@ -463,6 +504,14 @@ document.getElementById("nextPage")?.addEventListener("click", () => {
     const step = currentPage === 0 ? 1 : 2;
     if (currentPage + step < binder.config.totalPages) {
       currentPage += step;
+      // Garante que qualquer salto pra frente crie uma Left Page apenas com index Ímpar (evitando lado direito/pag par na esquerda)
+      if (currentPage > 0 && currentPage % 2 === 0) {
+        currentPage += 1; // Pula um espaço para forçar ímpar na direita
+        // Se após o pulo passarmos do limite do livro, recua para a folha ímpar possível
+        if (currentPage >= binder.config.totalPages) {
+          currentPage = currentPage - 2;
+        }
+      }
     }
   } else {
     if (currentPage + 1 < binder.config.totalPages) {
@@ -496,13 +545,14 @@ document.getElementById("toggleDisplayMode")?.addEventListener("click", () => {
 
   saveAll();
 
-  // Smart Page Retention Logic (Math fixes for spread mapping)
+  // Smart Page Retention Logic
+  // O currentPage é literalmente o índice real da página atual (da esquerda, no formato book).
+  // Os pares do fichário são estritos: Capa (0), Par1 (1,2), Par2 (3,4). 
+  // O left page do fichário será SEMPRE um número Ímpar (1, 3, 5), exceto a capa (0).
   if (isNowBook) {
-    // Normal to Book (Spread indices map to 2-page pairs, 0->0, 1->1, 2->1, 3->2)
-    currentPage = Math.floor((currentPage + 1) / 2);
-  } else {
-    // Book to Normal (Expands spread index back to left page of that pair, e.g 1->1 (Page 2), 2->3 (Page 4))
-    currentPage = currentPage > 0 ? (currentPage * 2) - 1 : 0;
+    if (currentPage > 0 && currentPage % 2 === 0) {
+      currentPage -= 1; // Ajusta pra página ímpar da esquerda do respectivo par
+    }
   }
 
   renderBinder();
@@ -871,12 +921,12 @@ function refreshBinderGallery() {
 
       thumbnailsHTML = `
         <div class="binder-feature-cover">
-          <div class="binder-mini-grid" style="grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr)">
+          <div class="binder-mini-grid" style="--cols: ${cols}; --rows: ${rows}; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr)">
             ${gridCellsHTML}
           </div>
         </div>
         <div class="binder-hover-popup">
-          <div class="binder-mini-grid" style="grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr)">
+          <div class="binder-mini-grid" style="--cols: ${cols}; --rows: ${rows}; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr)">
             ${gridCellsHTML}
           </div>
         </div>
@@ -895,8 +945,8 @@ function refreshBinderGallery() {
         <h4>${b.name}</h4>
         <p>${cfgCols}x${cfgRows} | ${pages} páginas</p>
         <p style="font-size:10px; opacity:0.6">${dateStr}</p>
-        <button class="delete-btn" title="Excluir este binder">🗑</button>
       </div>
+      <button class="delete-btn" title="Excluir este binder">🗑</button>
     `;
 
     // Clicar no cartão abre o binder
@@ -1075,8 +1125,39 @@ function renderResults(list) {
     img.style.userSelect = "none";
     div.appendChild(img);
 
-    div.addEventListener("click", () => {
+    div.addEventListener("click", (e) => {
       if (window._justDragged) return;
+
+      // Shift + Clique Esquerdo: Envia a carta para o primeiro slot vazio DENTRO DAS PÁGINAS ATUALMENTE ABERTAS E VISÍVEIS
+      if (e.shiftKey && binder && binder.pages) {
+        e.preventDefault();
+
+        const visibleSheets = binderPage.querySelectorAll(".binder-sheet:not(.is-empty)");
+        let targetSlot = null;
+
+        for (const sheet of visibleSheets) {
+          const emptySlots = Array.from(sheet.querySelectorAll(".slot")).filter(s => !s.querySelector(".card"));
+          if (emptySlots.length > 0) {
+            targetSlot = emptySlots[0];
+            break; // Achou o primeiro espaço vazio das abertas
+          }
+        }
+
+        if (targetSlot) {
+          const el = buildCardElement(card.id);
+          targetSlot.appendChild(el);
+          makeBinderCard(el);
+
+          saveAll();
+          renderBinder();
+          refreshHandLayout();
+        } else {
+          console.log("Não há slot livre de cartas visíveis na página atual.");
+        }
+        return;
+      }
+
+      // Adição normal pra baixo (Mão)
       const el = buildCardElement(card.id);
       makeHandCard(el);
       hand.appendChild(el);

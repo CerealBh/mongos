@@ -30,12 +30,21 @@ body {
   z-index: 1;
 }
 
-/* wrapper: por padrão é “single” */
-/* Binder ajusta ao conteúdo (sem “folha” fixa) */
+/* O contêiner MASTER onde entra a página. Ele quem receberá a escala via CSS Variables no max-width das sheets. */
 .binder-page {
+  /* scale via JS range slider (padrão 1 se JS não prover) */
+  --binder-zoom: 1;
+
+  align-items: center;
+  /* Mantém o binder centralizado sem ir pra baixo quando esticar */
+  max-width: 95vw;
+  margin: 0 auto;
+  min-height: 450px;
+  /* Espaço para as abas visíveis */
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
   padding: 30px 1vw;
 
   width: 100vw;
@@ -84,7 +93,9 @@ body {
 */
 .binder-page:not(.is-book) .binder-sheet {
   width: 100%;
-  max-width: min(65vw, 600px, calc(55vh * (var(--cols, 3) * 5) / (var(--rows, 3) * 7)));
+  /* A variável de zoom multiplica o tamanho final calculado */
+  max-width: calc(min(65vw, 600px, calc(55vh * (var(--cols, 3) * 5) / (var(--rows, 3) * 7))) * var(--binder-zoom));
+  transition: max-width 0.15s ease-out;
 }
 
 /* quando estiver em “book”, o binder-page vira wrapper flex */
@@ -103,7 +114,8 @@ body {
 /* Limites de tamanho no Book Mode (2 folhas lado a lado) */
 .binder-page.is-book .binder-sheet {
   width: 100%;
-  max-width: min(32vw, 420px, var(--auto-max-w, 420px));
+  max-width: calc(min(32vw, 420px, var(--auto-max-w, 420px)) * var(--binder-zoom));
+  transition: max-width 0.15s ease-out;
 }
 
 /* Em telas pequenas: volta pra 1 coluna (uma embaixo da outra) */
@@ -158,7 +170,44 @@ body {
   background: transparent !important;
 }
 
+/* Binder: carta sempre reta */
+.slot .card {
+  transform: none !important;
+  margin-left: 0 !important;
+  /* Garante que imagens estourando não quebrem o mouse das cartas vizinhas */
+  pointer-events: auto;
+}
+
+/* Hover effect na carta dentro do binder: Apenas a imagem cresce */
+.slot:hover {
+  z-index: 50;
+  /* Garante que o slot inteiro venha pra frente */
+}
+
+.slot .card:hover {
+  z-index: 100;
+  /* Garante que esta carta específica fique por cima das outras */
+}
+
+.slot .card:hover img.card-img {
+  /* Remove transform: scale pra parar o Chromium de borrar. Usamos width/height absoluto */
+  width: 145%;
+  height: 145%;
+  top: -22.5%;
+  left: -22.5%;
+
+  filter: brightness(1.08);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.8), 0 0 25px rgba(59, 130, 246, 0.5);
+  /* z-index aqui para a imagem também saltar pra frente */
+  z-index: 200;
+  transition: width 150ms ease, height 150ms ease, top 150ms ease, left 150ms ease, filter 150ms ease, box-shadow 150ms ease;
+}
+
+/* Transição de volta suave quando sai do hover (colocada no estado normal) */
 .card img.card-img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   display: block;
@@ -168,74 +217,133 @@ body {
   pointer-events: none;
   -webkit-user-drag: none;
   user-select: none;
+  transition: width 150ms ease, height 150ms ease, top 150ms ease, left 150ms ease, filter 150ms ease, box-shadow 150ms ease;
 }
 
-/* Placeholder enquanto carrega */
-.card.is-loading {
-  background: rgba(30, 41, 59, 0.55) !important;
-}
-
-.card.is-loading::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.03),
-      rgba(255, 255, 255, 0.10),
-      rgba(255, 255, 255, 0.03));
-  transform: translateX(-100%);
-  animation: shimmer 1.1s infinite;
-}
-
-@keyframes shimmer {
-  to {
-    transform: translateX(100%);
-  }
-}
-
-/* Binder: carta sempre reta */
-.slot .card {
-  transform: none !important;
-  margin-left: 0 !important;
-}
-
-/* ================= CONTROLES DE PÁGINA ================= */
-.binder-container {
+/* ================= HUD SPLIT (Botões Flutuantes Distribuídos) ================= */
+.hud-btn,
+.hud-nav-btn,
+.hud-badge {
+  background: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  position: relative;
-  /* Top padding opens safe space so the absolute positioned menu never overwrites the actual sheets */
-  padding-top: 80px;
-  min-height: 80vh;
+  justify-content: center;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
 }
 
-.page-controls {
-  position: absolute;
+.hud-btn:hover,
+.hud-nav-btn:hover {
+  background: rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+}
+
+.hud-badge {
+  cursor: default;
+  font-size: 1rem;
+  padding: 6px 14px;
+}
+
+.hud-danger {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.hud-danger:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.hud-nav-btn {
+  padding: 24px 16px;
+  font-size: 1.4rem;
+  border-radius: 16px;
+}
+
+/* Posições relativas aos cantos da tela */
+.hud-top-left {
+  position: fixed;
+  top: 20px;
+  left: 340px;
+  z-index: 2000;
+}
+
+.hud-top-right {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+}
+
+.hud-top-center {
+  position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  z-index: 1000;
+  z-index: 2000;
 }
 
-.page-controls button {
-  background: rgba(59, 130, 246, 0.2);
-  border: 1px solid rgba(59, 130, 246, 0.5);
-  color: #e2e8f0;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
+.hud-mid-left {
+  position: fixed;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  z-index: 2000;
+}
+
+.hud-mid-right {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 2000;
+}
+
+.hud-bottom-right {
+  position: fixed;
+  bottom: 30px;
+  right: 20px;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  z-index: 2000;
+  background: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(8px);
+  padding: 10px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.hud-bottom-right .hud-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  padding: 8px 12px;
+}
+
+.hud-bottom-right .hud-btn:hover {
+  background: rgba(59, 130, 246, 0.4);
 }
 
 .page-controls button:hover {
   background: rgba(59, 130, 246, 0.5);
 }
 
+.zoom-slider {
+  width: 90px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
 #pageIndicator {
-  min-width: 130px;
+  min-width: 100px;
   text-align: center;
 }
 
@@ -487,13 +595,13 @@ body {
 /* ================= MÃO (viewport + pan + arco) ================= */
 .hand-container {
   position: absolute;
-  bottom: 2vh;
+  bottom: 1vh;
   left: 50%;
   transform: translateX(-50%);
+
+  /* Tamanho gigantesco para caber as cartas sem cortes nunca */
   width: 60vw;
   max-width: 800px;
-
-  /* Altura reduzida para ocupar menos a tela na parte inferior */
   height: 25vh;
   max-height: 250px;
 
@@ -508,13 +616,14 @@ body {
 
 /* viewport com tudo visível para vertical, mas scroll no horizontal */
 .hand-viewport {
+  position: relative;
+  /* Base pro ::before (o Fosco visual) */
   width: 100%;
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  /* Espaço interno apenas suficiente para a carta subir no Hover sem bater nas paredes invisíveis da div */
-  padding: 40px 20px 10px;
-  border-radius: 18px;
+  /* Espaço interno para afastar da borda */
+  padding: 40px 10px 10px;
   touch-action: pan-x;
   scroll-behavior: smooth;
   /* Ocultar barra em navegadores padrão */
@@ -529,16 +638,34 @@ body {
   display: none;
 }
 
-/* tracejado só quando vazio */
-.hand-viewport:has(#hand:empty) {
-  border: 2px dashed rgba(59, 130, 246, 0.25);
-  backdrop-filter: blur(4px);
-  background: rgba(15, 23, 42, 0.15);
-  /* Bem mais transparente */
+/* Pseudo-elemento do Fundo Fosco VISUAL (Desatrelado do container lógico gigante) */
+.hand-viewport::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+
+  /* Esse sim é esmagado visualmente pra economizar espaço */
+  width: min(35vw, 450px);
+  height: 12vh;
+
+  border-radius: 18px;
+  z-index: -1;
+  pointer-events: none;
+  transition: all 0.3s ease;
 }
 
-/* sem caixa quando tem carta */
-.hand-viewport:has(#hand:not(:empty)) {
+/* tracejado só quando vazio (Aplica no Before) */
+.hand-viewport:has(#hand:empty)::before {
+  border: 1px dashed rgba(59, 130, 246, 0.15);
+  backdrop-filter: blur(1.5px);
+  background: rgba(15, 23, 42, 0.05);
+  /* Praticamente invisível */
+}
+
+/* sem caixa ou com caixa leve quando tem carta (Aplica no Before) */
+.hand-viewport:has(#hand:not(:empty))::before {
   border: none;
   background: transparent;
   backdrop-filter: none;
@@ -566,13 +693,14 @@ body {
 .hand .card {
   position: relative;
 
-  width: clamp(70px, 5.6vw, 110px) !important;
+  /* Reduzidas em 50% */
+  width: clamp(35px, 2.8vw, 55px) !important;
   height: auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
 
-  /* Margem negativa em TODAS as cartas (inclusive a 1ª) para evitar o flicker do first-child saltando a margem pra 0 e quebrando as transições. */
-  margin-left: -2.2vw;
+  /* Margem negativa cortada pela metade */
+  margin-left: -1.1vw;
 
   transform-origin: bottom center;
 
@@ -759,16 +887,19 @@ body,
   backdrop-filter: blur(8px);
   box-shadow: 0 0 30px rgba(37, 99, 235, 0.2);
 
-  /* NEW GRID STYLES */
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* NEW FLEX STYLES */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
   gap: 8px;
-  align-items: start;
 }
 
 /* cards do resultado */
 .result-card {
-  width: 100%;
+  position: relative;
+  width: calc((100% - 16px) / 3);
+  height: auto;
   aspect-ratio: 5/7;
   margin: 0;
   cursor: pointer;
@@ -786,9 +917,12 @@ body,
 }
 
 .result-card img {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
+  object-fit: contain;
 }
 
 /* se a tela for pequena, joga a busca pra cima (pra não esmagar) */
@@ -806,7 +940,7 @@ body,
 
 .trash-zone {
   position: fixed;
-  left: 20px;
+  right: 20px;
   bottom: 25vh;
 
   width: 120px;
@@ -1014,6 +1148,41 @@ body,
 /* Carta física base durante o drag (origem semi-invisible) */
 .card.is-dragging-source {
   opacity: 0.3 !important;
+}
+
+/* ================= LUPA EM TELA CHEIA (MAGNIFIER) ================= */
+.card-magnifier {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: rgba(2, 6, 23, 0.75);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  /* Nunca rouba o mouse */
+  transition: opacity 0.25s ease-out;
+}
+
+.card-magnifier.show {
+  opacity: 1;
+}
+
+.card-magnifier img {
+  height: min(90vh, 1000px);
+  width: auto;
+  aspect-ratio: 5/7;
+  object-fit: contain;
+  border-radius: 18px;
+  box-shadow: 0 35px 70px rgba(0, 0, 0, 0.8), 0 0 40px rgba(59, 130, 246, 0.4);
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card-magnifier.show img {
+  transform: scale(1) translateY(0);
 }
 
 /* during drag, ignore hover on ALL base cards so physical coordinate checks `document.elementFromPoint()` securely pierce through to drop slots. */

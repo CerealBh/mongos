@@ -312,6 +312,36 @@ function buildCardElement(cardId) {
     refreshHandLayout();
   });
 
+  /* ================================================================
+     SISTEMA DE LUPA EM TELA CHEIA (HOVER PROLONGADO)
+  ================================================================ */
+  let magnifierTimeout = null;
+
+  el.addEventListener("mouseenter", () => {
+    // Se estiver arrastando qualquer coisa no site, ignora
+    if (isDragging || window._justDragged) return;
+
+    // Define o timer de 600ms (0.6 segundos parados)
+    magnifierTimeout = setTimeout(() => {
+      if (isDragging) return; // double check
+      const magImg = document.getElementById("cardMagnifierImg");
+      const magDiv = document.getElementById("cardMagnifier");
+      if (magImg && magDiv && meta?.img) {
+        magImg.src = meta.img;
+        magDiv.classList.add("show");
+      }
+    }, 600);
+  });
+
+  const hideMagnifier = () => {
+    if (magnifierTimeout) clearTimeout(magnifierTimeout);
+    const magDiv = document.getElementById("cardMagnifier");
+    if (magDiv) magDiv.classList.remove("show");
+  };
+
+  el.addEventListener("mouseleave", hideMagnifier);
+  el.addEventListener("pointerdown", hideMagnifier); // Garante que a lupa suma ao tentar arrastar/clicar
+
   return el;
 }
 
@@ -556,6 +586,13 @@ document.getElementById("toggleDisplayMode")?.addEventListener("click", () => {
   }
 
   renderBinder();
+});
+
+document.getElementById("binderZoom")?.addEventListener("input", (e) => {
+  const page = document.querySelector(".binder-page");
+  if (page) {
+    page.style.setProperty("--binder-zoom", e.target.value);
+  }
 });
 
 /* =========================
@@ -1165,6 +1202,33 @@ function renderResults(list) {
       saveAll();
       refreshHandLayout();
     });
+
+    /* ================================================================
+       SISTEMA DE LUPA EM TELA CHEIA (HOVER PROLONGADO)
+    ================================================================ */
+    let magnifierTimeout = null;
+
+    div.addEventListener("mouseenter", () => {
+      if (window._justDragged) return;
+
+      magnifierTimeout = setTimeout(() => {
+        const magImg = document.getElementById("cardMagnifierImg");
+        const magDiv = document.getElementById("cardMagnifier");
+        if (magImg && magDiv && card.img) {
+          magImg.src = card.img;
+          magDiv.classList.add("show");
+        }
+      }, 600);
+    });
+
+    const hideMagnifier = () => {
+      if (magnifierTimeout) clearTimeout(magnifierTimeout);
+      const magDiv = document.getElementById("cardMagnifier");
+      if (magDiv) magDiv.classList.remove("show");
+    };
+
+    div.addEventListener("mouseleave", hideMagnifier);
+    div.addEventListener("pointerdown", hideMagnifier);
 
     box.appendChild(div);
   });

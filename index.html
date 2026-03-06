@@ -53,26 +53,46 @@
 			</div>
 		</div>
 
+		<!-- Busca (HUD Flutuante desatrelada do Fichário) -->
+		<div class="search-panel">
+			<input id="searchInput" type="text" placeholder="Buscar carta (ex: Gengar, Pikachu)..." autocomplete="off">
+			<div id="searchResults" class="search-results"></div>
+		</div>
+
+		<!-- HUD Top Left -->
+		<div class="hud-top-left">
+			<button id="manageBinders" class="hud-btn" title="Gerenciar Pastas">📚</button>
+		</div>
+
+		<!-- HUD Top Right -->
+		<div class="hud-top-right">
+			<button id="deleteBinder" class="hud-btn hud-danger" title="Excluir Pasta">🗑</button>
+		</div>
+
+		<!-- HUD Top Center -->
+		<div class="hud-top-center">
+			<span id="pageIndicator" class="hud-badge">Página 1</span>
+		</div>
+
+		<!-- HUD Mid Left -->
+		<div class="hud-mid-left">
+			<button id="prevPage" class="hud-nav-btn">◀</button>
+		</div>
+
+		<!-- HUD Mid Right -->
+		<div class="hud-mid-right">
+			<button id="nextPage" class="hud-nav-btn">▶</button>
+		</div>
+
+		<!-- HUD Bottom Right -->
+		<div class="hud-bottom-right">
+			<button id="addPage" class="hud-btn" title="Adicionar Página">➕</button>
+			<button id="toggleDisplayMode" class="hud-btn" title="Alternar Modo Livro">📖</button>
+			<input type="range" id="binderZoom" class="zoom-slider" min="0.4" max="2" step="0.05" value="1"
+				title="Zoom do Fichário">
+		</div>
+
 		<div class="binder-container">
-
-			<!-- Busca (fora dos botões) -->
-			<div class="search-panel">
-				<input id="searchInput" type="text" placeholder="Buscar carta (ex: Gengar, Pikachu)..."
-					autocomplete="off">
-				<div id="searchResults" class="search-results"></div>
-			</div>
-
-			<!-- Controles de página (só botões + texto) -->
-			<div class="page-controls">
-				<button id="manageBinders">📚</button>
-				<button id="prevPage">◀</button>
-				<span id="pageIndicator">Página 1</span>
-				<button id="nextPage">▶</button>
-				<button id="addPage" title="Adicionar Página">➕</button>
-				<button id="toggleDisplayMode" title="Alternar Modo Livro">📖</button>
-				<button id="deleteBinder">🗑</button>
-			</div>
-
 			<div class="binder-page"></div>
 		</div>
 
@@ -86,7 +106,12 @@
 
 	<div id="handDropZone" aria-hidden="true"></div>
 
-	<script src="script.js?v=6" defer></script>
+	<!-- Lupa de Cartas em Tela Cheia -->
+	<div id="cardMagnifier" class="card-magnifier" aria-hidden="true">
+		<img src="" id="cardMagnifierImg" alt="Carta Ampliada">
+	</div>
+
+	<script src="script.js?v=7" defer></script>
 </body>
 
 </html>
